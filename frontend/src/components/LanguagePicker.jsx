@@ -1,5 +1,5 @@
 import { useLang } from "../lib/language-context";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Languages } from "lucide-react";
 
 export function LanguagePicker() {
@@ -14,9 +14,9 @@ export function LanguagePicker() {
           <DialogTitle className="font-heading font-bold text-2xl text-rk-navy">
             Choose your preferred language
           </DialogTitle>
-          <p className="text-sm text-rk-muted">
+          <DialogDescription className="text-sm text-rk-muted">
             अपनी पसंदीदा भाषा चुनें — Switch anytime from the header.
-          </p>
+          </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-2 mt-2 max-h-[60vh] overflow-y-auto no-scrollbar">
           {languages.map((l) => (

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "./ui/sheet";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Send, Sparkles, Loader2 } from "lucide-react";
@@ -68,7 +68,7 @@ export function AIChat({ open, onOpenChange }) {
             </div>
             <div>
               <SheetTitle className="text-white font-heading">AI Travel Assistant</SheetTitle>
-              <p className="text-xs text-white/70">Multilingual · Powered by Claude</p>
+              <SheetDescription className="text-xs text-white/70">Multilingual · Powered by Claude</SheetDescription>
             </div>
           </div>
         </SheetHeader>

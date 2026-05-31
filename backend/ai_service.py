@@ -191,8 +191,8 @@ async def real_distance_km(pickup: str, destination: Optional[str],
     if not destination:
         return 25.0, "local"
 
-    a = (pickup_lat, pickup_lon) if pickup_lat and pickup_lon else None
-    b = (dest_lat, dest_lon) if dest_lat and dest_lon else None
+    a = (pickup_lat, pickup_lon) if (pickup_lat is not None and pickup_lon is not None) else None
+    b = (dest_lat, dest_lon) if (dest_lat is not None and dest_lon is not None) else None
     if not a:
         a = await _geocode(pickup)
     if not b:

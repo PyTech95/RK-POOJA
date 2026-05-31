@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Download, Smartphone, X } from "lucide-react";
 import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 
 /**
  * PWA install button. Listens for beforeinstallprompt and exposes a CTA.
@@ -20,7 +21,6 @@ export function InstallAppButton({ variant = "primary", className = "", label = 
     window.addEventListener("beforeinstallprompt", onBefore);
     window.addEventListener("appinstalled", onInstalled);
 
-    // Check if already running as standalone
     if (window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone) {
       setInstalled(true);
     }
@@ -32,13 +32,16 @@ export function InstallAppButton({ variant = "primary", className = "", label = 
 
   const click = async () => {
     if (deferred) {
-      deferred.prompt();
-      const choice = await deferred.userChoice;
-      if (choice?.outcome === "accepted") setInstalled(true);
+      try {
+        deferred.prompt();
+        const choice = await deferred.userChoice;
+        if (choice?.outcome === "accepted") setInstalled(true);
+      } catch {}
       setDeferred(null);
-    } else {
-      setShowHelp(true);
+      return;
     }
+    // No native prompt available — always open the help modal so the click has feedback.
+    setShowHelp(true);
   };
 
   if (installed) return null;
@@ -57,45 +60,34 @@ export function InstallAppButton({ variant = "primary", className = "", label = 
         <Download className="mr-2" size={18} /> {label}
       </Button>
 
-      {showHelp && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4"
-          onClick={() => setShowHelp(false)}
-          data-testid="install-help-modal"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl max-w-md w-full p-6 relative"
-          >
-            <button
-              onClick={() => setShowHelp(false)}
-              className="absolute top-3 right-3 p-1 rounded-full hover:bg-slate-100"
-              aria-label="Close"
-            >
-              <X size={16} />
-            </button>
-            <div className="w-12 h-12 rounded-2xl bg-rk-orange/10 grid place-items-center">
+      <Dialog open={showHelp} onOpenChange={setShowHelp}>
+        <DialogContent className="max-w-md" data-testid="install-help-modal">
+          <DialogHeader>
+            <div className="w-12 h-12 rounded-2xl bg-rk-orange/10 grid place-items-center mb-2">
               <Smartphone className="text-rk-orange" size={22} />
             </div>
-            <h3 className="font-heading font-extrabold text-xl text-rk-navy mt-3">Add RK POOJA to your home screen</h3>
-            <p className="text-sm text-rk-muted mt-2">
+            <DialogTitle className="font-heading font-extrabold text-2xl text-rk-navy">
+              Add RK POOJA to your home screen
+            </DialogTitle>
+            <DialogDescription className="text-sm text-rk-muted">
               Get one-tap access to all rides — works offline & feels like a native app.
-            </p>
-            <div className="mt-5 space-y-3 text-sm text-rk-ink">
-              <Step n="1" text="Open this page in Safari (iOS) or Chrome (Android)" />
-              <Step n="2" text="Tap the Share icon ↗ on iOS, or the ⋮ menu on Android" />
-              <Step n="3" text='Choose "Add to Home Screen"' />
-              <Step n="4" text="Open RK POOJA from your home screen any time" />
-            </div>
-            <Button
-              onClick={() => setShowHelp(false)}
-              className="w-full mt-5 bg-rk-navy hover:bg-rk-navy-700 text-white rounded-full"
-            >
-              Got it
-            </Button>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-rk-ink mt-2">
+            <Step n="1" text="Open this page in Safari (iOS) or Chrome (Android)" />
+            <Step n="2" text="Tap the Share icon ↗ on iOS, or the ⋮ menu on Android" />
+            <Step n="3" text='Choose "Add to Home Screen"' />
+            <Step n="4" text="Open RK POOJA from your home screen any time" />
           </div>
-        </div>
-      )}
+          <Button
+            onClick={() => setShowHelp(false)}
+            className="w-full mt-3 bg-rk-navy hover:bg-rk-navy-700 text-white rounded-full"
+            data-testid="install-help-close"
+          >
+            Got it
+          </Button>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
