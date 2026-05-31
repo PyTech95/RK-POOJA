@@ -6,12 +6,7 @@ const LanguageContext = createContext(null);
 export function LanguageProvider({ children }) {
   const [lang, setLangState] = useState(() => localStorage.getItem("rk_lang") || "en");
   const [showPicker, setShowPicker] = useState(false);
-
-  useEffect(() => {
-    if (!localStorage.getItem("rk_lang")) {
-      setShowPicker(true);
-    }
-  }, []);
+  const [firstRun, setFirstRun] = useState(() => !localStorage.getItem("rk_onboarded"));
 
   const setLang = (code) => {
     localStorage.setItem("rk_lang", code);
@@ -19,10 +14,20 @@ export function LanguageProvider({ children }) {
     setShowPicker(false);
   };
 
+  const completeFirstRun = () => {
+    localStorage.setItem("rk_onboarded", "1");
+    if (!localStorage.getItem("rk_lang")) localStorage.setItem("rk_lang", lang);
+    setFirstRun(false);
+  };
+
   const t = (key) => translate(lang, key);
 
   return (
-    <LanguageContext.Provider value={{ lang, setLang, t, languages: LANGUAGES, showPicker, setShowPicker }}>
+    <LanguageContext.Provider value={{
+      lang, setLang, t, languages: LANGUAGES,
+      showPicker, setShowPicker,
+      firstRun, completeFirstRun,
+    }}>
       {children}
     </LanguageContext.Provider>
   );

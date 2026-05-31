@@ -7,6 +7,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { FloatingActions } from "@/components/FloatingActions";
 import { LanguagePicker } from "@/components/LanguagePicker";
+import { LanguageSplash } from "@/components/LanguageSplash";
 import Home from "@/pages/Home";
 import ServicePage from "@/pages/ServicePage";
 import Login from "@/pages/Login";
@@ -36,6 +37,7 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <Toaster position="top-right" richColors />
+          <LanguageSplash />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />

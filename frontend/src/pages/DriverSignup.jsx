@@ -97,6 +97,21 @@ export default function DriverSignup() {
       <div className="flex items-center justify-center p-6 sm:p-12">
         <form onSubmit={submit} className="w-full max-w-md space-y-4">
           <div className="lg:hidden"><Logo size={36} /></div>
+
+          <div className="rounded-2xl bg-rk-orange/10 border border-rk-orange/30 p-4 flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-rk-orange text-white grid place-items-center shrink-0">
+              <Car size={18} />
+            </div>
+            <div>
+              <div className="font-heading font-bold text-rk-navy">3 आसान कदम / 3 easy steps</div>
+              <ol className="text-xs text-rk-muted mt-1 space-y-0.5">
+                <li>1. नाम और फ़ोन भरें · Fill name & phone</li>
+                <li>2. गाड़ी की जानकारी चुनें · Pick vehicle type</li>
+                <li>3. ₹500 बोनस पाएँ · Get ₹500 bonus instantly</li>
+              </ol>
+            </div>
+          </div>
+
           <div>
             <h1 className="font-heading font-extrabold text-3xl text-rk-navy">Become a partner</h1>
             <p className="text-sm text-rk-muted mt-1">
