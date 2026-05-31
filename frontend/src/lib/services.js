@@ -1,0 +1,103 @@
+import {
+  Car, Bike, Bus, Truck, Package, ShipWheel, Crown,
+} from "lucide-react";
+
+export const SERVICES = [
+  {
+    key: "car",
+    name: "Car Travel",
+    short: "Sedan · SUV · Luxury · EV",
+    desc: "Local, outstation, airport, corporate, wedding & event travel.",
+    color: "#0A2E6D",
+    accent: "#FF7A00",
+    Icon: Car,
+    image: "https://static.prod-images.emergentagent.com/jobs/de2c2a56-7f92-45de-b842-e291157a61a0/images/8bd227b729b92f06d75c547b7bf2d6633d9a3341eba0cd04ed3c585382611ea8.png",
+    categories: ["Mini Car","Sedan","SUV","Premium SUV","Luxury Car","Luxury SUV","Electric Vehicle"],
+    sub_services: ["Local Travel","Outstation One-Way","Outstation Round Trip","Airport Transfer","Corporate Travel","Wedding Travel","Event Travel","Hourly Rental","Daily Rental"],
+  },
+  {
+    key: "auto",
+    name: "Auto Rickshaw",
+    short: "City · Station · Airport",
+    desc: "Quick, pocket-friendly local rides across the city.",
+    color: "#0A2E6D",
+    accent: "#FF7A00",
+    Icon: ShipWheel,
+    image: "https://images.pexels.com/photos/67183/pexels-photo-67183.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    categories: ["Standard Auto","Shared Auto","E-Auto"],
+    sub_services: ["Local City Travel","Station Pickup","Airport Pickup","Daily Travel"],
+  },
+  {
+    key: "bike",
+    name: "Bike Ride",
+    short: "Beat traffic · Quick hops",
+    desc: "Fast solo rides for daily commute & short distances.",
+    color: "#0A2E6D",
+    accent: "#FF7A00",
+    Icon: Bike,
+    image: "https://images.pexels.com/photos/2519374/pexels-photo-2519374.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    categories: ["Standard","Premium"],
+    sub_services: ["Quick City Travel","Daily Commute","Short Distance Travel"],
+  },
+  {
+    key: "tempo",
+    name: "Tempo Traveller",
+    short: "9 / 12 / 17 / 20 / 26 seater",
+    desc: "Families, tours, pilgrimage, weddings & corporate groups.",
+    color: "#0A2E6D",
+    accent: "#FF7A00",
+    Icon: Crown,
+    image: "https://static.prod-images.emergentagent.com/jobs/de2c2a56-7f92-45de-b842-e291157a61a0/images/3fa8410edc05d1071e5e602b1bd59c73d3cdbd7d57bc252f5ae7a811f1460486.png",
+    categories: ["9 Seater","12 Seater","17 Seater","20 Seater","26 Seater"],
+    sub_services: ["Family Trips","Tours","Corporate Travel","Pilgrimage Tours","Wedding Groups","Events"],
+  },
+  {
+    key: "bus",
+    name: "Bus Booking",
+    short: "Mini · AC · Sleeper · Volvo",
+    desc: "Group bus inquiries — our team arranges the right bus.",
+    color: "#0A2E6D",
+    accent: "#FF7A00",
+    Icon: Bus,
+    image: "https://static.prod-images.emergentagent.com/jobs/de2c2a56-7f92-45de-b842-e291157a61a0/images/6c76e333b6a6507a4479075230bfe183d97242f6bc3fa8c509d399d69ab56408.png",
+    categories: ["Mini Bus","Traveller Bus","AC Bus","Sleeper Bus","Luxury Coach","Volvo","School Bus","Corporate Bus"],
+    sub_services: ["Group Travel","Pilgrimage","Corporate","School","Wedding","Tour Package"],
+  },
+  {
+    key: "porter",
+    name: "Porter Service",
+    short: "Parcels · Docs · Medicine",
+    desc: "Same-day, on-demand small package delivery.",
+    color: "#0A2E6D",
+    accent: "#FF7A00",
+    Icon: Package,
+    image: "https://images.pexels.com/photos/4391477/pexels-photo-4391477.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    categories: ["Bike Delivery","Auto Delivery","Mini Truck"],
+    sub_services: ["Parcel Delivery","Bike Delivery","Document Delivery","Medicine Delivery","Same Day Delivery"],
+  },
+  {
+    key: "goods",
+    name: "Goods Transport",
+    short: "Tata Ace · Pickup · Truck",
+    desc: "Move home, shop or factory cargo across the country.",
+    color: "#0A2E6D",
+    accent: "#FF7A00",
+    Icon: Truck,
+    image: "https://static.prod-images.emergentagent.com/jobs/de2c2a56-7f92-45de-b842-e291157a61a0/images/3fa8410edc05d1071e5e602b1bd59c73d3cdbd7d57bc252f5ae7a811f1460486.png",
+    categories: ["Bike","Mini Truck","Tata Ace","Pickup Truck","Truck","Container"],
+    sub_services: ["Home Shifting","Shop Goods","Industrial","Same City","Inter-City"],
+  },
+];
+
+export function getService(key) {
+  return SERVICES.find((s) => s.key === key);
+}
+
+export const POPULAR_ROUTES = [
+  { from: "Patna",     to: "Gaya",       price: "₹2,500 – ₹3,200" },
+  { from: "Delhi",     to: "Agra",       price: "₹4,200 – ₹5,800" },
+  { from: "Mumbai",    to: "Pune",       price: "₹2,800 – ₹3,900" },
+  { from: "Bangalore", to: "Mysore",     price: "₹2,600 – ₹3,500" },
+  { from: "Chennai",   to: "Pondicherry",price: "₹3,000 – ₹4,200" },
+  { from: "Delhi",     to: "Jaipur",     price: "₹5,000 – ₹6,800" },
+];
