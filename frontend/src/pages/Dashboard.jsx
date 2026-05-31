@@ -141,7 +141,7 @@ export default function Dashboard() {
 function InquiryCard({ inq }) {
   const colors = { hot: "#FF7A00", warm: "#F59E0B", cold: "#3B82F6" };
   const c = colors[inq.lead_score] || "#F59E0B";
-  const waUrl = buildInquiryWhatsApp({ inquiry: inq, number: "919999999999" });
+  const waUrl = buildInquiryWhatsApp({ inquiry: inq, number: "919955095226" });
   return (
     <div className="rounded-2xl bg-white border border-rk-border p-5" data-testid={`inquiry-card-${inq.id}`}>
       <div className="flex items-center justify-between">

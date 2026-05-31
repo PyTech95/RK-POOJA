@@ -114,7 +114,7 @@ export function InquiryForm({ service }) {
 
   const waUrl = useMemo(() => {
     if (!result) return null;
-    return buildInquiryWhatsApp({ inquiry: result, number: "919999999999" });
+    return buildInquiryWhatsApp({ inquiry: result, number: "919955095226" });
   }, [result]);
 
   if (result) {

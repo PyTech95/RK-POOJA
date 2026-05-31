@@ -129,7 +129,7 @@ export function VoiceBooking({ open, onOpenChange }) {
       toast.success("Ride request placed! Opening WhatsApp…");
       // Send to WhatsApp
       const { buildInquiryWhatsApp } = await import("../lib/whatsapp");
-      const url = buildInquiryWhatsApp({ inquiry: data, number: "919999999999" });
+      const url = buildInquiryWhatsApp({ inquiry: data, number: "919955095226" });
       window.open(url, "_blank", "noreferrer");
       onOpenChange(false);
       navigate(`/dashboard`);

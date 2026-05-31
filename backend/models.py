@@ -231,3 +231,99 @@ class ApplyReferralRequest(BaseModel):
 class ReverseGeoRequest(BaseModel):
     lat: float
     lon: float
+
+
+# ---------- Driver ----------
+class DriverProfileDoc(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=new_id)
+    user_id: str  # links to User
+    # KYC
+    aadhaar_number: Optional[str] = None
+    dl_number: Optional[str] = None  # driving licence
+    pan_number: Optional[str] = None
+    # Vehicle
+    vehicle_type: Optional[str] = None  # car | auto | bike | tempo | bus | truck
+    vehicle_category: Optional[str] = None  # Sedan, 17 Seater etc.
+    vehicle_number: Optional[str] = None  # plate
+    vehicle_model: Optional[str] = None
+    vehicle_year: Optional[int] = None
+    rc_number: Optional[str] = None
+    insurance_expiry: Optional[str] = None
+    # City / service area
+    base_city: Optional[str] = None
+    service_radius_km: Optional[int] = 50
+    # Status
+    kyc_status: str = "pending"  # pending | approved | rejected
+    kyc_notes: Optional[str] = None
+    online: bool = False
+    # GPS
+    current_lat: Optional[float] = None
+    current_lon: Optional[float] = None
+    last_location_at: Optional[str] = None
+    # Aggregates
+    total_rides: int = 0
+    rating_avg: float = 0.0
+    rating_count: int = 0
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class DriverSignupRequest(BaseModel):
+    name: str
+    email: EmailStr
+    phone: str
+    password: str
+    vehicle_type: str
+    vehicle_category: Optional[str] = None
+    vehicle_number: Optional[str] = None
+    base_city: Optional[str] = None
+    referral_code: Optional[str] = None
+    language: Optional[str] = "en"
+
+
+class DriverProfileUpdate(BaseModel):
+    aadhaar_number: Optional[str] = None
+    dl_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    vehicle_category: Optional[str] = None
+    vehicle_number: Optional[str] = None
+    vehicle_model: Optional[str] = None
+    vehicle_year: Optional[int] = None
+    rc_number: Optional[str] = None
+    insurance_expiry: Optional[str] = None
+    base_city: Optional[str] = None
+    service_radius_km: Optional[int] = None
+
+
+class DriverStatusRequest(BaseModel):
+    online: bool
+
+
+class DriverLocationRequest(BaseModel):
+    lat: float
+    lon: float
+
+
+class DriverKycReviewRequest(BaseModel):
+    status: str  # approved | rejected
+    notes: Optional[str] = None
+
+
+class RatingDoc(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=new_id)
+    inquiry_id: str
+    rater_user_id: str  # customer
+    driver_user_id: str
+    stars: int  # 1-5
+    comment: Optional[str] = None
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class RatingRequest(BaseModel):
+    inquiry_id: str
+    stars: int
+    comment: Optional[str] = None
+

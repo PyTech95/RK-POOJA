@@ -3,8 +3,13 @@ ONE APP. ALL RIDES.
 """
 import os
 import logging
+import uuid
 from pathlib import Path
 from typing import Optional
+
+
+def uuid_str():
+    return str(uuid.uuid4())
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +25,8 @@ from models import (
     AIChatRequest, AIChatResponse, VoiceParseRequest,
     QuoteRequest, QuoteResponse, ChatMessageDoc,
     WalletTopupRequest, WalletCreditRequest, ApplyReferralRequest, ReverseGeoRequest,
+    DriverSignupRequest, DriverProfileUpdate, DriverStatusRequest, DriverLocationRequest,
+    DriverKycReviewRequest, RatingRequest,
     utc_now,
 )
 from auth import (
@@ -33,6 +40,10 @@ from wallet_service import (
     ensure_wallet_and_referral, get_balance, credit_wallet, apply_referral,
     reverse_geocode,
 )
+from driver_service import (
+    ensure_driver_profile, update_driver_profile, get_matching_inquiries,
+    accept_inquiry, update_driver_rating, DRIVER_SIGNUP_BONUS,
+)
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
@@ -44,6 +55,8 @@ chats_col = db.chat_messages
 wallets_col = db.wallets
 transactions_col = db.transactions
 referrals_col = db.referrals
+driver_profiles_col = db.driver_profiles
+ratings_col = db.ratings
 
 
 def _strip(doc: dict) -> dict:
@@ -288,7 +301,210 @@ async def admin_users(_admin=Depends(require_admin)):
 
 @api.get("/whatsapp/number")
 async def whatsapp_number():
-    return {"number": os.environ.get("WHATSAPP_NUMBER", "919999999999")}
+    return {
+        "number": os.environ.get("WHATSAPP_NUMBER", "919955095226"),
+        "owner": os.environ.get("OWNER_NAME", "RK POOJA"),
+    }
+
+
+# ---------- Driver ----------
+@api.post("/driver/signup")
+async def driver_signup(payload: DriverSignupRequest):
+    existing = await users_col.find_one({"email": payload.email.lower()})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered. Please login.")
+    user = UserDoc(
+        name=payload.name,
+        email=payload.email.lower(),
+        phone=payload.phone,
+        language=payload.language or "en",
+        role="driver",
+        password_hash=hash_password(payload.password),
+    )
+    doc = user.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await users_col.insert_one(doc)
+
+    # Wallet + referral code
+    await ensure_wallet_and_referral(db, user.id, user.name)
+    if payload.referral_code:
+        await apply_referral(db, user.id, payload.referral_code)
+    # Extra driver signup bonus
+    if DRIVER_SIGNUP_BONUS > 0:
+        await credit_wallet(db, user.id, DRIVER_SIGNUP_BONUS, "credit",
+                            note="Driver signup bonus")
+
+    # Driver profile
+    await ensure_driver_profile(db, user.id)
+    await update_driver_profile(db, user.id, {
+        "vehicle_type": payload.vehicle_type,
+        "vehicle_category": payload.vehicle_category,
+        "vehicle_number": payload.vehicle_number,
+        "base_city": payload.base_city,
+    })
+
+    token = create_token(user.id, user.role)
+    return {
+        "token": token,
+        "user": {
+            "id": user.id, "name": user.name, "email": user.email,
+            "phone": user.phone, "language": user.language, "role": user.role,
+        },
+    }
+
+
+def _require_driver(user: dict):
+    if user.get("role") not in ("driver", "admin"):
+        raise HTTPException(status_code=403, detail="Driver access required")
+
+
+@api.get("/driver/me")
+async def driver_me(user=Depends(get_current_user)):
+    _require_driver(user)
+    profile = await driver_profiles_col.find_one({"user_id": user["sub"]}, {"_id": 0})
+    if not profile:
+        profile = await ensure_driver_profile(db, user["sub"])
+    udoc = await users_col.find_one({"id": user["sub"]}, {"_id": 0, "password_hash": 0})
+    return {"user": udoc, "profile": profile}
+
+
+@api.patch("/driver/me")
+async def driver_update_me(payload: DriverProfileUpdate, user=Depends(get_current_user)):
+    _require_driver(user)
+    updated = await update_driver_profile(db, user["sub"], payload.model_dump(exclude_none=True))
+    return updated
+
+
+@api.post("/driver/status")
+async def driver_set_status(payload: DriverStatusRequest, user=Depends(get_current_user)):
+    _require_driver(user)
+    await update_driver_profile(db, user["sub"], {"online": payload.online})
+    return {"online": payload.online}
+
+
+@api.post("/driver/location")
+async def driver_set_location(payload: DriverLocationRequest, user=Depends(get_current_user)):
+    _require_driver(user)
+    await update_driver_profile(db, user["sub"], {
+        "current_lat": payload.lat,
+        "current_lon": payload.lon,
+        "last_location_at": utc_now().isoformat(),
+    })
+    return {"ok": True}
+
+
+@api.get("/driver/inquiries")
+async def driver_get_inquiries(user=Depends(get_current_user)):
+    _require_driver(user)
+    profile = await driver_profiles_col.find_one({"user_id": user["sub"]}, {"_id": 0})
+    if not profile:
+        return []
+    if not profile.get("online"):
+        return []
+    return await get_matching_inquiries(db, profile, limit=50)
+
+
+@api.get("/driver/inquiries/mine")
+async def driver_my_inquiries(user=Depends(get_current_user)):
+    _require_driver(user)
+    cur = inquiries_col.find({"assigned_driver_id": user["sub"]}, {"_id": 0}).sort("accepted_at", -1)
+    return await cur.to_list(500)
+
+
+@api.post("/driver/inquiries/{inquiry_id}/accept")
+async def driver_accept(inquiry_id: str, user=Depends(get_current_user)):
+    _require_driver(user)
+    res = await accept_inquiry(db, inquiry_id, user["sub"])
+    if not res:
+        raise HTTPException(status_code=409, detail="Inquiry already taken or not available")
+    return res
+
+
+@api.post("/driver/inquiries/{inquiry_id}/reject")
+async def driver_reject(inquiry_id: str, user=Depends(get_current_user)):
+    """Soft-reject: record the rejection so we don't show it again to this driver."""
+    _require_driver(user)
+    await inquiries_col.update_one(
+        {"id": inquiry_id},
+        {"$addToSet": {"rejected_by_drivers": user["sub"]}},
+    )
+    return {"ok": True}
+
+
+@api.get("/driver/inquiries/{inquiry_id}")
+async def driver_inquiry_detail(inquiry_id: str, user=Depends(get_current_user)):
+    _require_driver(user)
+    doc = await inquiries_col.find_one({"id": inquiry_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Not found")
+    if doc.get("assigned_driver_id") not in (user["sub"], None) and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Not your inquiry")
+    return doc
+
+
+# ---------- Ratings ----------
+@api.post("/ratings")
+async def submit_rating(payload: RatingRequest, user=Depends(get_current_user)):
+    inq = await inquiries_col.find_one({"id": payload.inquiry_id})
+    if not inq:
+        raise HTTPException(status_code=404, detail="Inquiry not found")
+    if inq.get("user_id") != user["sub"] and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="You can only rate your own inquiries")
+    driver_id = inq.get("assigned_driver_id")
+    if not driver_id:
+        raise HTTPException(status_code=400, detail="No driver assigned yet")
+    if not (1 <= int(payload.stars) <= 5):
+        raise HTTPException(status_code=400, detail="Stars must be 1-5")
+    # one rating per inquiry
+    existing = await ratings_col.find_one({"inquiry_id": payload.inquiry_id, "rater_user_id": user["sub"]})
+    if existing:
+        raise HTTPException(status_code=400, detail="Already rated")
+    rdoc = {
+        "id": str(uuid_str()),
+        "inquiry_id": payload.inquiry_id,
+        "rater_user_id": user["sub"],
+        "driver_user_id": driver_id,
+        "stars": int(payload.stars),
+        "comment": payload.comment,
+        "created_at": utc_now().isoformat(),
+    }
+    await ratings_col.insert_one(rdoc)
+    await update_driver_rating(db, driver_id, int(payload.stars))
+    return {"ok": True}
+
+
+@api.get("/driver/ratings")
+async def my_driver_ratings(user=Depends(get_current_user)):
+    _require_driver(user)
+    cur = ratings_col.find({"driver_user_id": user["sub"]}, {"_id": 0}).sort("created_at", -1).limit(100)
+    return await cur.to_list(100)
+
+
+# ---------- Admin Driver Management ----------
+@api.get("/admin/drivers")
+async def admin_drivers(_admin=Depends(require_admin)):
+    profiles = await driver_profiles_col.find({}, {"_id": 0}).to_list(1000)
+    if not profiles:
+        return []
+    uids = [p["user_id"] for p in profiles]
+    users = await users_col.find({"id": {"$in": uids}}, {"_id": 0, "password_hash": 0}).to_list(1000)
+    bu = {u["id"]: u for u in users}
+    out = []
+    for p in profiles:
+        u = bu.get(p["user_id"], {})
+        out.append({**p, "name": u.get("name"), "email": u.get("email"), "phone": u.get("phone")})
+    return out
+
+
+@api.post("/admin/drivers/{driver_user_id}/kyc")
+async def admin_review_kyc(driver_user_id: str, payload: DriverKycReviewRequest, _admin=Depends(require_admin)):
+    if payload.status not in ("approved", "rejected", "pending"):
+        raise HTTPException(status_code=400, detail="Invalid status")
+    await update_driver_profile(db, driver_user_id, {
+        "kyc_status": payload.status,
+        "kyc_notes": payload.notes,
+    })
+    return {"ok": True}
 
 
 # ---------- Wallet ----------

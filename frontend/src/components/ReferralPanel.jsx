@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 export function ReferralPanel() {
   const [data, setData] = useState(null);
-  const [whatsappNumber, setWhatsappNumber] = useState("919999999999");
+  const [whatsappNumber, setWhatsappNumber] = useState("919955095226");
 
   useEffect(() => {
     api.get("/referrals/me").then((r) => setData(r.data)).catch(() => {});

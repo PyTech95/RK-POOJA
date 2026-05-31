@@ -14,6 +14,8 @@ import Signup from "@/pages/Signup";
 import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
 import Roadmap from "@/pages/Roadmap";
+import DriverSignup from "@/pages/DriverSignup";
+import DriverDashboard from "@/pages/DriverDashboard";
 
 function Layout({ children }) {
   return (
@@ -36,6 +38,8 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/driver/signup" element={<DriverSignup />} />
+            <Route path="/driver" element={<Layout><DriverDashboard /></Layout>} />
             <Route path="/" element={<Layout><Home /></Layout>} />
             <Route path="/services/:type" element={<Layout><ServicePage /></Layout>} />
             <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />

@@ -7,7 +7,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
-import { Globe, Menu, X, LogOut, LayoutDashboard, ShieldCheck, User as UserIcon, Wallet, Gift, Map } from "lucide-react";
+import { Globe, Menu, X, LogOut, LayoutDashboard, ShieldCheck, User as UserIcon, Wallet, Gift, Map, Car } from "lucide-react";
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -111,6 +111,11 @@ export function Header() {
                 <DropdownMenuItem onClick={() => navigate("/dashboard?tab=profile")} data-testid="menu-profile">
                   <UserIcon size={14} className="mr-2" /> {t("profile")}
                 </DropdownMenuItem>
+                {user.role === "driver" && (
+                  <DropdownMenuItem onClick={() => navigate("/driver")} data-testid="menu-driver">
+                    <Car size={14} className="mr-2" /> Partner dashboard
+                  </DropdownMenuItem>
+                )}
                 {user.role === "admin" && (
                   <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">
                     <ShieldCheck size={14} className="mr-2" /> {t("admin")}

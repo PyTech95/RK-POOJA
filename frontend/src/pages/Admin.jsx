@@ -82,6 +82,7 @@ export default function Admin() {
       <Tabs defaultValue="leads" className="mt-8">
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="leads" data-testid="admin-tab-leads">Leads</TabsTrigger>
+          <TabsTrigger value="drivers" data-testid="admin-tab-drivers">Drivers</TabsTrigger>
           <TabsTrigger value="users" data-testid="admin-tab-users">Users</TabsTrigger>
           <TabsTrigger value="referrals" data-testid="admin-tab-referrals">Referrals</TabsTrigger>
           <TabsTrigger value="transactions" data-testid="admin-tab-transactions">Transactions</TabsTrigger>
@@ -160,7 +161,7 @@ export default function Admin() {
                       </Select>
                     </td>
                     <td className="p-3">
-                      <a href={buildInquiryWhatsApp({ inquiry: i, number: i.customer_phone || "919999999999" })}
+                      <a href={buildInquiryWhatsApp({ inquiry: i, number: i.customer_phone || "919955095226" })}
                          target="_blank" rel="noreferrer"
                          className="inline-flex items-center gap-1 bg-[#25D366] text-white rounded-full px-3 py-1 text-xs font-semibold"
                          data-testid={`wa-row-${i.id}`}>
@@ -215,6 +216,10 @@ export default function Admin() {
           </ChartCard>
         </TabsContent>
 
+        <TabsContent value="drivers" className="mt-6">
+          <DriversTab />
+        </TabsContent>
+
         <TabsContent value="users" className="mt-6">
           <UsersTab />
         </TabsContent>
@@ -227,6 +232,102 @@ export default function Admin() {
           <TransactionsTab />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function DriversTab() {
+  const [drivers, setDrivers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await api.get("/admin/drivers");
+      setDrivers(r.data);
+    } catch { toast.error("Failed to load drivers"); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const review = async (driverId, status) => {
+    try {
+      await api.post(`/admin/drivers/${driverId}/kyc`, { status });
+      toast.success(`KYC ${status}`);
+      load();
+    } catch { toast.error("Failed"); }
+  };
+
+  if (loading) return <div className="text-rk-muted flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Loading…</div>;
+
+  return (
+    <div className="rounded-2xl border border-rk-border bg-white overflow-x-auto" data-testid="admin-drivers-table">
+      <table className="w-full text-sm min-w-[900px]">
+        <thead className="bg-slate-50 text-rk-muted text-xs uppercase tracking-widest">
+          <tr>
+            <th className="text-left p-3">Driver</th>
+            <th className="text-left p-3">Vehicle</th>
+            <th className="text-left p-3">City</th>
+            <th className="text-left p-3">Status</th>
+            <th className="text-left p-3">Rating</th>
+            <th className="text-left p-3">KYC</th>
+            <th className="text-left p-3">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {drivers.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-rk-muted">No drivers signed up yet.</td></tr>}
+          {drivers.map((d) => (
+            <tr key={d.user_id} className="border-t border-rk-border" data-testid={`admin-driver-row-${d.user_id}`}>
+              <td className="p-3">
+                <div className="font-semibold text-rk-ink">{d.name}</div>
+                <div className="text-xs text-rk-muted">{d.phone}</div>
+              </td>
+              <td className="p-3">
+                <div className="uppercase font-semibold text-rk-ink">{d.vehicle_type || "—"}</div>
+                <div className="text-xs text-rk-muted">{d.vehicle_category} · {d.vehicle_number || "—"}</div>
+              </td>
+              <td className="p-3">{d.base_city || "—"}</td>
+              <td className="p-3">
+                <span className={`inline-flex items-center gap-1 text-xs font-bold uppercase ${d.online ? "text-green-600" : "text-rk-muted"}`}>
+                  <span className={`w-2 h-2 rounded-full ${d.online ? "bg-green-500" : "bg-slate-400"}`} />
+                  {d.online ? "Online" : "Offline"}
+                </span>
+              </td>
+              <td className="p-3">
+                <div className="flex items-center gap-1">
+                  ⭐ <b>{d.rating_avg?.toFixed?.(1) || "—"}</b>
+                  <span className="text-xs text-rk-muted">({d.rating_count || 0})</span>
+                </div>
+              </td>
+              <td className="p-3">
+                <Badge style={{
+                  background: d.kyc_status === "approved" ? "#16A34A" :
+                              d.kyc_status === "rejected" ? "#DC2626" : "#F59E0B",
+                  color: "white"
+                }} className="uppercase font-bold tracking-widest text-[10px]">
+                  {d.kyc_status}
+                </Badge>
+              </td>
+              <td className="p-3 flex gap-1 flex-wrap">
+                {d.kyc_status !== "approved" && (
+                  <Button size="sm" onClick={() => review(d.user_id, "approved")}
+                    className="bg-green-600 hover:bg-green-700 text-white rounded-full h-8 text-xs"
+                    data-testid={`approve-${d.user_id}`}>
+                    Approve
+                  </Button>
+                )}
+                {d.kyc_status !== "rejected" && (
+                  <Button size="sm" variant="outline" onClick={() => review(d.user_id, "rejected")}
+                    className="rounded-full h-8 text-xs"
+                    data-testid={`reject-${d.user_id}`}>
+                    Reject
+                  </Button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

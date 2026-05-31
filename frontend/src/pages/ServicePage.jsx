@@ -71,7 +71,7 @@ export default function ServicePage() {
               We're available 24×7 in 12 Indian languages.
             </p>
             <a
-              href="https://wa.me/919999999999"
+              href="https://wa.me/919955095226"
               target="_blank" rel="noreferrer"
               className="mt-3 block text-center bg-rk-orange hover:bg-rk-orange-600 text-white rounded-full py-2.5 font-semibold"
               data-testid="aside-whatsapp"

@@ -7,7 +7,7 @@ import { api } from "../lib/api";
 export function FloatingActions() {
   const [openChat, setOpenChat] = useState(false);
   const [openVoice, setOpenVoice] = useState(false);
-  const [waNumber, setWaNumber] = useState("919999999999");
+  const [waNumber, setWaNumber] = useState("919955095226");
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export function FloatingActions() {
             </FabButton>
             <FabButton
               label="Call us"
-              href="tel:+919999999999"
+              href="tel:+919955095226"
               testId="fab-call"
               bg="#0A2E6D"
             >

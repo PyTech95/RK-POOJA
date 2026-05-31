@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Mic, MessageCircle, ArrowRight, ShieldCheck, Clock, Headphones,
-  Star, MapPin, Sparkles, ChevronRight,
+  Star, MapPin, Sparkles, ChevronRight, Car,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { SERVICES, POPULAR_ROUTES } from "../lib/services";
@@ -251,6 +251,54 @@ export default function Home() {
         </div>
       </section>
 
+      {/* DRIVE WITH US CTA */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4 pt-2">
+        <div className="rounded-3xl bg-rk-navy text-white p-8 sm:p-10 relative overflow-hidden" data-testid="drive-with-us-section">
+          <div className="absolute inset-0 rk-grain opacity-[0.06]" />
+          <div className="absolute -left-10 -top-10 w-72 h-72 rounded-full bg-rk-orange/25 blur-3xl" />
+          <div className="relative grid lg:grid-cols-5 gap-8 items-center">
+            <div className="lg:col-span-3">
+              <div className="inline-flex items-center gap-2 bg-rk-orange/20 border border-rk-orange/40 px-3 py-1.5 rounded-full">
+                <Car size={14} className="text-rk-orange" />
+                <span className="text-[11px] font-bold uppercase tracking-widest">For drivers & owners</span>
+              </div>
+              <h2 className="font-heading font-extrabold text-3xl sm:text-4xl mt-3 tracking-tight">
+                Own a car, tempo, bus or truck? Earn with RK POOJA.
+              </h2>
+              <p className="mt-3 text-white/80 max-w-xl">
+                Get verified ride & goods inquiries straight to your phone. Accept what you want,
+                keep your earnings, grow your business. ₹500 signup bonus, instant wallet.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button asChild className="bg-rk-orange hover:bg-rk-orange-600 text-white rounded-full h-14 px-7 text-base font-bold shadow-2xl shadow-rk-orange/40">
+                  <Link to="/driver/signup" data-testid="hero-driver-signup-cta">
+                    <Car className="mr-2" size={18} /> Become a partner — earn ₹500
+                  </Link>
+                </Button>
+                <Button asChild variant="ghost" className="text-white border border-white/30 rounded-full h-14 px-6 hover:bg-white/10">
+                  <Link to="/driver" data-testid="hero-driver-login-cta">Already a partner? Login</Link>
+                </Button>
+              </div>
+            </div>
+            <div className="lg:col-span-2">
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { v: "₹500", l: "Signup bonus" },
+                  { v: "0%", l: "Commission (1st month)" },
+                  { v: "24/7", l: "WhatsApp support" },
+                  { v: "₹500", l: "Per driver referral" },
+                ].map((c) => (
+                  <div key={c.l} className="bg-white/5 border border-white/15 rounded-xl p-4">
+                    <div className="font-heading font-black text-3xl text-rk-orange">{c.v}</div>
+                    <div className="text-xs text-white/70 mt-1">{c.l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* WHATSAPP + INSTALL CTA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="rounded-3xl bg-gradient-to-br from-rk-orange to-rk-orange-600 text-white p-8 sm:p-12 relative overflow-hidden">
@@ -267,7 +315,7 @@ export default function Home() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <InstallAppButton variant="secondary" label="Install RK POOJA app" />
                 <a
-                  href={`https://wa.me/919999999999?text=${encodeURIComponent("Hello RK POOJA, I want to book a ride.")}`}
+                  href={`https://wa.me/919955095226?text=${encodeURIComponent("Hello RK POOJA, I want to book a ride.")}`}
                   target="_blank" rel="noreferrer"
                   className="bg-white/15 backdrop-blur text-white border border-white/40 rounded-full px-6 py-3 font-bold inline-flex items-center gap-2 hover:bg-white/25 h-14"
                   data-testid="cta-whatsapp"

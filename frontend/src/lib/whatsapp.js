@@ -24,6 +24,6 @@ export function buildInquiryWhatsApp({ inquiry, number }) {
   if (inquiry.customer_phone) lines.push(`Phone: ${inquiry.customer_phone}`);
   lines.push("", "Please contact me. — sent via RK POOJA app");
   const msg = encodeURIComponent(lines.join("\n"));
-  const cleanNumber = String(number || "919999999999").replace(/\D/g, "");
+  const cleanNumber = String(number || "919955095226").replace(/\D/g, "");
   return `https://wa.me/${cleanNumber}?text=${msg}`;
 }
