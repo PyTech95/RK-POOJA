@@ -2,8 +2,11 @@
 import os
 import json
 import re
+import logging
 from typing import Optional, Dict, Any
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+logger = logging.getLogger(__name__)
 
 
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
@@ -44,7 +47,14 @@ async def ai_chat_reply(session_id: str, message: str, language: str = "en") -> 
         reply = await chat.send_message(UserMessage(text=message))
         return str(reply).strip()
     except Exception as e:
-        return f"Sorry, I had trouble connecting. Please tap WhatsApp to reach our team. ({type(e).__name__})"
+        logger.exception("AI chat failed for session=%s lang=%s: %s", session_id, language, e)
+        # one quick retry — most failures are transient
+        try:
+            reply = await chat.send_message(UserMessage(text=message))
+            return str(reply).strip()
+        except Exception as e2:
+            logger.exception("AI chat retry also failed: %s", e2)
+            return "Sorry — I'm having trouble connecting right now. Please tap the green WhatsApp button to reach our team directly."
 
 
 async def ai_parse_voice(transcript: str, language: str = "en") -> Dict[str, Any]:
