@@ -1,0 +1,110 @@
+{
+  "project_name": "RK POOJA",
+  "tagline": "ONE APP. ALL RIDES.",
+  "theme": {
+    "primary_mode": "light",
+    "archetype": "Swiss & High-Contrast (Adapted for Indian Transport Market)",
+    "mood": "Premium, Fast, Reliable, Trustworthy, Uber-level Simplicity"
+  },
+  "colors": {
+    "brand_primary": "#0A2E6D",
+    "brand_accent": "#FF7A00",
+    "light_mode": {
+      "background": "#F8FAFC",
+      "surface": "#FFFFFF",
+      "text_primary": "#0F172A",
+      "text_secondary": "#475569",
+      "border": "#E2E8F0",
+      "header_glass": "rgba(255, 255, 255, 0.85)"
+    },
+    "dark_mode": {
+      "background": "#020617",
+      "surface": "#0F172A",
+      "text_primary": "#F8FAFC",
+      "text_secondary": "#94A3B8",
+      "border": "#1E293B",
+      "header_glass": "rgba(2, 6, 23, 0.85)"
+    },
+    "ai_lead_scoring": {
+      "hot": "#FF7A00",
+      "warm": "#F59E0B",
+      "cold": "#3B82F6"
+    },
+    "prohibited": [
+      "Purple",
+      "Violet",
+      "Teal",
+      "Generic AI gradients"
+    ]
+  },
+  "typography": {
+    "heading_font": "Outfit",
+    "body_font": "Manrope",
+    "rules": [
+      "Use tracking-tight for all H1 and H2.",
+      "Never use Inter or Roboto.",
+      "Headings should use font-bold or font-extrabold for a confident, solid feel.",
+      "Overlines/Labels (like 'TRUSTED BY', 'SERVICES') use uppercase, tracking-widest, text-xs.",
+      "Ensure body text has a comfortable reading line-height (leading-relaxed)."
+    ]
+  },
+  "spacing_and_layout": {
+    "philosophy": "Mobile-first density combined with expansive desktop layouts. Generous whitespace to convey a premium feel.",
+    "container": "Max-width 7xl (1280px) for most pages to ensure content isn't too stretched on ultra-wides.",
+    "corners": "Use rounded-xl or rounded-2xl for main cards to match modern tech aesthetics. Use rounded-full for primary action buttons/pills.",
+    "borders": "1px subtle borders (border-slate-200) with soft shadow (shadow-sm) to lift surfaces slightly from the background.",
+    "grid": "Bento Grid strategy for the service tiles and dashboard widgets."
+  },
+  "components": {
+    "buttons": "Primary buttons MUST be #FF7A00 with text-white. Secondary buttons are #0A2E6D with text-white. Always include hover states (brightness change or scale).",
+    "forms": "Multi-step or clean single-step wizard style. Minimum height 48px (h-12) for mobile touch targets. distinct focus states (focus:ring-2 focus:ring-[#FF7A00]).",
+    "floating_actions": "Fixed positioning (z-50). Floating AI Mic, AI Chat drawer toggle, and WhatsApp CTA. Use shadow-2xl and pulse animations.",
+    "service_tiles": "Grid of 7 tiles (Car, Auto, Bike, Tempo, Bus, Porter, Goods). On hover: -translate-y-1, elevated shadow, border-brand_primary.",
+    "cards": "Flat solid backgrounds. Avoid default Shadcn card if it feels boxy; customize with generous padding (p-6 or p-8) and subtle ring/border."
+  },
+  "animations": {
+    "page_transitions": "Framer motion staggered fade-in and slide-up for grids and sections.",
+    "micro_interactions": "Hover states scale elements by 1.02. Active (click) states scale down to 0.98.",
+    "ai_voice": "When active, display a glowing pulse effect (#FF7A00/50) around the microphone button."
+  },
+  "media": {
+    "hero_background": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/de2c2a56-7f92-45de-b842-e291157a61a0/images/8bd227b729b92f06d75c547b7bf2d6633d9a3341eba0cd04ed3c585382611ea8.png",
+      "description": "Cinematic Indian city road twilight, navy and orange hues"
+    },
+    "abstract_speed": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/de2c2a56-7f92-45de-b842-e291157a61a0/images/6fa4433eb711325ce18d94fad1d082973981d6404e5599d9f344935773dc9f76.png",
+      "description": "Abstract speed lines for AI sections"
+    },
+    "bus_travel": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/de2c2a56-7f92-45de-b842-e291157a61a0/images/6c76e333b6a6507a4479075230bfe183d97242f6bc3fa8c509d399d69ab56408.png",
+      "description": "Premium luxury bus travel"
+    },
+    "tempo_traveller": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/de2c2a56-7f92-45de-b842-e291157a61a0/images/3fa8410edc05d1071e5e602b1bd59c73d3cdbd7d57bc252f5ae7a811f1460486.png",
+      "description": "Tempo traveller in a scenic location"
+    },
+    "auto_rickshaw": {
+      "url": "https://images.pexels.com/photos/67183/pexels-photo-67183.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Moving auto rickshaw on city street"
+    },
+    "cargo_truck": {
+      "url": "https://images.pexels.com/photos/31310062/pexels-photo-31310062.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Cargo truck on a scenic highway"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Install Google Fonts 'Outfit' (headings) and 'Manrope' (body).",
+    "Install `lucide-react` or `@phosphor-icons/react` for icons.",
+    "Install `framer-motion` for animations.",
+    "Create the logo using text/HTML: Bold Navy 'RK' with an orange road/pin, 'pooja' wordmark below, and the tagline.",
+    "Ensure the hero section uses the deep navy background with the vivid orange accent for the primary Call to Action (CTA).",
+    "Build the 7 service tiles in a responsive grid. Car, Auto, Bike, Tempo Traveller, Bus Booking, Porter, Goods Transport.",
+    "Create a Multilingual picker modal (12 Indian languages) on first launch and switchable from the header.",
+    "Implement the sticky AI Floating action buttons (Voice, Chat, WhatsApp) - Mobile first.",
+    "Implement the Lead Scoring UI (Hot, Warm, Cold) in the Admin Dashboard.",
+    "Include a 'SAFE & RELIABLE | ON-TIME | 24x7 SUPPORT' trust strip.",
+    "All interactive elements MUST have `data-testid` attributes for testing.",
+    "Strictly follow the color palette. Embrace the Indian premium aesthetic. No purple/violet AI gradients."
+  ]
+}
