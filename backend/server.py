@@ -7,17 +7,18 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-
-def uuid_str():
-    return str(uuid.uuid4())
-
-from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Header, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
+
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Header, Query, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+from motor.motor_asyncio import AsyncIOMotorClient
 
 from models import (
     UserCreate, UserLogin, UserDoc, UserPublic,
@@ -44,6 +45,14 @@ from driver_service import (
     ensure_driver_profile, update_driver_profile, get_matching_inquiries,
     accept_inquiry, update_driver_rating, DRIVER_SIGNUP_BONUS,
 )
+from storage_service import put_object, get_object, init_storage, APP_NAME, MIME_BY_EXT
+from emergentintegrations.payments.stripe.checkout import (
+    StripeCheckout, CheckoutSessionRequest,
+)
+
+
+def uuid_str():
+    return str(uuid.uuid4())
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
@@ -57,6 +66,8 @@ transactions_col = db.transactions
 referrals_col = db.referrals
 driver_profiles_col = db.driver_profiles
 ratings_col = db.ratings
+files_col = db.files
+payment_txns_col = db.payment_transactions
 
 
 def _strip(doc: dict) -> dict:
@@ -480,6 +491,198 @@ async def my_driver_ratings(user=Depends(get_current_user)):
     return await cur.to_list(100)
 
 
+# ---------- KYC Document Upload (Emergent Object Storage) ----------
+ALLOWED_KYC_TYPES = {"aadhaar", "dl", "rc", "pan", "insurance", "vehicle_photo"}
+MAX_KYC_SIZE = 8 * 1024 * 1024  # 8 MB
+
+
+@api.post("/driver/kyc/upload")
+async def driver_kyc_upload(
+    doc_type: str = Query(...),
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+):
+    _require_driver(user)
+    if doc_type not in ALLOWED_KYC_TYPES:
+        raise HTTPException(status_code=400, detail=f"doc_type must be one of {sorted(ALLOWED_KYC_TYPES)}")
+    data = await file.read()
+    if len(data) > MAX_KYC_SIZE:
+        raise HTTPException(status_code=413, detail="File too large (max 8 MB)")
+    ext = (file.filename or "bin").rsplit(".", 1)[-1].lower() if "." in (file.filename or "") else "bin"
+    content_type = file.content_type or MIME_BY_EXT.get(ext, "application/octet-stream")
+    if not (content_type.startswith("image/") or content_type == "application/pdf"):
+        raise HTTPException(status_code=415, detail="Only images or PDFs accepted")
+
+    path = f"{APP_NAME}/kyc/{user['sub']}/{uuid_str()}.{ext}"
+    try:
+        result = put_object(path, data, content_type)
+    except Exception as e:
+        logger.exception("KYC upload failed")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
+
+    file_doc = {
+        "id": uuid_str(),
+        "owner_user_id": user["sub"],
+        "purpose": "kyc",
+        "doc_type": doc_type,
+        "storage_path": result["path"],
+        "original_filename": file.filename,
+        "content_type": content_type,
+        "size": result.get("size", len(data)),
+        "is_deleted": False,
+        "created_at": utc_now().isoformat(),
+    }
+    await files_col.insert_one(file_doc)
+
+    # save URL ref on driver profile
+    await driver_profiles_col.update_one(
+        {"user_id": user["sub"]},
+        {"$set": {f"kyc_docs.{doc_type}": {
+            "file_id": file_doc["id"],
+            "path": result["path"],
+            "uploaded_at": file_doc["created_at"],
+        }, "kyc_status": "pending"}},
+        upsert=True,
+    )
+
+    return {"file_id": file_doc["id"], "doc_type": doc_type, "size": file_doc["size"]}
+
+
+@api.get("/files/{file_id}")
+async def serve_file(file_id: str, auth: Optional[str] = Query(None), authorization: Optional[str] = Header(None)):
+    """Serve a file. Accepts either Bearer token via header or ?auth= query (for <img>)."""
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1]
+    elif auth:
+        token = auth
+    if not token:
+        raise HTTPException(status_code=401, detail="Auth required")
+    try:
+        from auth import decode_token
+        decoded = decode_token(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    record = await files_col.find_one({"id": file_id, "is_deleted": False})
+    if not record:
+        raise HTTPException(status_code=404, detail="Not found")
+    # auth: owner OR admin
+    if decoded["sub"] != record["owner_user_id"] and decoded.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    data, content_type = get_object(record["storage_path"])
+    return Response(content=data, media_type=record.get("content_type", content_type))
+
+
+# ---------- Stripe Payments (Wallet Top-up) ----------
+WALLET_PACKAGES = {
+    "100": 100.0, "500": 500.0, "1000": 1000.0, "2000": 2000.0, "5000": 5000.0,
+}
+
+
+@api.post("/wallet/checkout/session")
+async def wallet_checkout_session(payload: dict, request: Request, user=Depends(get_current_user)):
+    """Create a Stripe Checkout session for wallet top-up.
+    Body: {package_id: '100'|'500'|..., origin_url: 'https://...'}"""
+    package_id = str(payload.get("package_id", "")).strip()
+    origin_url = str(payload.get("origin_url", "")).rstrip("/")
+    if package_id not in WALLET_PACKAGES:
+        raise HTTPException(status_code=400, detail="Invalid package")
+    if not origin_url.startswith("http"):
+        raise HTTPException(status_code=400, detail="Invalid origin_url")
+
+    amount = WALLET_PACKAGES[package_id]
+    api_key = os.environ["STRIPE_API_KEY"]
+    webhook_url = f"{str(request.base_url).rstrip('/')}/api/webhook/stripe"
+    checkout = StripeCheckout(api_key=api_key, webhook_url=webhook_url)
+
+    success_url = f"{origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin_url}/dashboard?tab=wallet"
+    req = CheckoutSessionRequest(
+        amount=amount, currency="inr",
+        success_url=success_url, cancel_url=cancel_url,
+        metadata={"user_id": user["sub"], "package_id": package_id, "purpose": "wallet_topup"},
+    )
+    session = await checkout.create_checkout_session(req)
+
+    await payment_txns_col.insert_one({
+        "id": uuid_str(),
+        "session_id": session.session_id,
+        "user_id": user["sub"],
+        "amount": amount, "currency": "inr",
+        "package_id": package_id,
+        "payment_status": "initiated",
+        "status": "open",
+        "metadata": {"purpose": "wallet_topup"},
+        "credited": False,
+        "created_at": utc_now().isoformat(),
+        "updated_at": utc_now().isoformat(),
+    })
+    return {"url": session.url, "session_id": session.session_id}
+
+
+@api.get("/wallet/checkout/status/{session_id}")
+async def wallet_checkout_status(session_id: str, request: Request, user=Depends(get_current_user)):
+    api_key = os.environ["STRIPE_API_KEY"]
+    webhook_url = f"{str(request.base_url).rstrip('/')}/api/webhook/stripe"
+    checkout = StripeCheckout(api_key=api_key, webhook_url=webhook_url)
+    status = await checkout.get_checkout_status(session_id)
+
+    txn = await payment_txns_col.find_one({"session_id": session_id})
+    if not txn:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if txn["user_id"] != user["sub"] and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    await payment_txns_col.update_one(
+        {"session_id": session_id},
+        {"$set": {
+            "payment_status": status.payment_status,
+            "status": status.status,
+            "updated_at": utc_now().isoformat(),
+        }},
+    )
+
+    # Idempotent credit
+    if status.payment_status == "paid" and not txn.get("credited"):
+        await credit_wallet(db, txn["user_id"], int(float(txn["amount"])), "topup",
+                            note=f"Stripe top-up ₹{int(float(txn['amount']))}", ref_id=session_id)
+        await payment_txns_col.update_one({"session_id": session_id}, {"$set": {"credited": True}})
+
+    return {
+        "session_id": session_id,
+        "payment_status": status.payment_status,
+        "status": status.status,
+        "amount": int(float(txn["amount"])),
+        "currency": status.currency,
+    }
+
+
+@api.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    body = await request.body()
+    sig = request.headers.get("Stripe-Signature")
+    api_key = os.environ["STRIPE_API_KEY"]
+    webhook_url = f"{str(request.base_url).rstrip('/')}/api/webhook/stripe"
+    checkout = StripeCheckout(api_key=api_key, webhook_url=webhook_url)
+    try:
+        evt = await checkout.handle_webhook(body, sig)
+    except Exception as e:
+        logger.exception("webhook handling failed")
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if evt.payment_status == "paid":
+        txn = await payment_txns_col.find_one({"session_id": evt.session_id})
+        if txn and not txn.get("credited"):
+            await credit_wallet(db, txn["user_id"], int(float(txn["amount"])), "topup",
+                                note=f"Stripe top-up ₹{int(float(txn['amount']))} (webhook)",
+                                ref_id=evt.session_id)
+            await payment_txns_col.update_one({"session_id": evt.session_id},
+                {"$set": {"credited": True, "payment_status": "paid", "status": "complete",
+                          "updated_at": utc_now().isoformat()}})
+    return {"ok": True}
+
+
 # ---------- Admin Driver Management ----------
 @api.get("/admin/drivers")
 async def admin_drivers(_admin=Depends(require_admin)):
@@ -634,6 +837,13 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def seed_admin():
+    # Try to init object storage (non-fatal if it fails)
+    try:
+        init_storage()
+        logger.info("Object storage initialized")
+    except Exception as e:
+        logger.warning("Object storage init failed (will retry on demand): %s", e)
+
     admin_email = "admin@rkpooja.in"
     existing = await users_col.find_one({"email": admin_email})
     if not existing:

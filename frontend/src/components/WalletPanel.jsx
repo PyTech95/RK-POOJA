@@ -10,7 +10,7 @@ const QUICK = [100, 500, 1000, 2000];
 export function WalletPanel() {
   const [data, setData] = useState(null);
   const [amount, setAmount] = useState("");
-  const [topping, setTopping] = useState(false);
+  const [topping, setTopping] = useState(null);
 
   const load = async () => {
     try {
@@ -26,16 +26,26 @@ export function WalletPanel() {
   const topup = async (a) => {
     const amt = Number(a || amount);
     if (!amt || amt <= 0) { toast.error("Enter a positive amount"); return; }
-    setTopping(true);
+    // Map custom amount to nearest package
+    let pkg;
+    if ([100,500,1000,2000,5000].includes(amt)) pkg = String(amt);
+    else {
+      // pick the closest standard package, or default to 500
+      const choices = [100,500,1000,2000,5000];
+      pkg = String(choices.reduce((p, c) => Math.abs(c - amt) < Math.abs(p - amt) ? c : p, 500));
+      toast.info(`Using closest standard package: ₹${pkg}`);
+    }
+    setTopping(amt);
     try {
-      await api.post("/wallet/topup", { amount: amt });
-      toast.success(`₹${amt} added to wallet`);
-      setAmount("");
-      load();
+      const { data } = await api.post("/wallet/checkout/session", {
+        package_id: pkg,
+        origin_url: window.location.origin,
+      });
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
     } catch (e) {
-      toast.error("Top-up failed");
-    } finally {
-      setTopping(false);
+      toast.error(e.response?.data?.detail || "Could not start checkout");
+      setTopping(null);
     }
   };
 
@@ -65,23 +75,23 @@ export function WalletPanel() {
         </div>
         <div className="grid grid-cols-4 gap-2 mb-3">
           {QUICK.map((a) => (
-            <Button key={a} variant="outline" disabled={topping} onClick={() => topup(a)}
+            <Button key={a} variant="outline" disabled={!!topping} onClick={() => topup(a)}
               className="h-11 rounded-full border-rk-border hover:border-rk-orange hover:text-rk-orange"
               data-testid={`topup-${a}`}>
-              + ₹{a}
+              {topping === a ? <Loader2 size={14} className="animate-spin" /> : `+ ₹${a}`}
             </Button>
           ))}
         </div>
         <div className="flex gap-2">
           <Input type="number" placeholder="Custom amount" min={1} value={amount}
             onChange={(e) => setAmount(e.target.value)} className="h-11" data-testid="topup-custom" />
-          <Button onClick={() => topup()} disabled={topping}
+          <Button onClick={() => topup()} disabled={!!topping}
             className="h-11 bg-rk-orange hover:bg-rk-orange-600 text-white rounded-full px-5" data-testid="topup-submit">
-            {topping ? <Loader2 size={14} className="animate-spin" /> : "Top up"}
+            {topping ? <Loader2 size={14} className="animate-spin" /> : "Top up via Stripe"}
           </Button>
         </div>
         <p className="text-[11px] text-rk-muted mt-2">
-          Instant credit (mock gateway). Stripe/Razorpay can be enabled later — keys not collected yet.
+          Secure payment via Stripe Checkout. INR · cards / UPI / netbanking supported.
         </p>
       </div>
 

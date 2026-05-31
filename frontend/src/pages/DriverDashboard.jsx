@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { WalletPanel } from "../components/WalletPanel";
 import { ReferralPanel } from "../components/ReferralPanel";
+import { KycUploader } from "../components/KycUploader";
 import { buildInquiryWhatsApp } from "../lib/whatsapp";
 
 export default function DriverDashboard() {
@@ -394,6 +395,21 @@ function KycPanel({ profile, onSaved }) {
           <Field label="Insurance expiry" type="date" value={form.insurance_expiry} onChange={(v) => setForm({ ...form, insurance_expiry: v })} testId="kyc-ins" />
           <Field label="Base city" value={form.base_city} onChange={(v) => setForm({ ...form, base_city: v })} testId="kyc-city" />
           <Field label="Service radius (km)" type="number" value={form.service_radius_km} onChange={(v) => setForm({ ...form, service_radius_km: v })} testId="kyc-radius" />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-rk-border bg-white p-6">
+        <h3 className="font-heading font-bold text-xl text-rk-navy">Upload documents</h3>
+        <p className="text-xs text-rk-muted mt-1">Upload clear photos / PDFs. Admin will review and approve.</p>
+        <div className="grid sm:grid-cols-2 gap-3 mt-4">
+          {["aadhaar","dl","pan","rc","insurance","vehicle_photo"].map((dt) => (
+            <KycUploader
+              key={dt}
+              docType={dt}
+              existing={profile?.kyc_docs?.[dt]}
+              onUploaded={onSaved}
+            />
+          ))}
         </div>
       </div>
 
