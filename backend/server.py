@@ -26,7 +26,7 @@ from auth import (
     get_current_user, get_current_user_optional, require_admin,
 )
 from ai_service import (
-    ai_chat_reply, ai_parse_voice, estimate_distance_km, estimate_quote, score_lead,
+    ai_chat_reply, ai_parse_voice, real_distance_km, estimate_quote, score_lead,
 )
 
 mongo_url = os.environ["MONGO_URL"]
@@ -127,7 +127,11 @@ async def update_me(payload: dict, user=Depends(get_current_user)):
 @api.post("/inquiries")
 async def create_inquiry(payload: InquiryCreate, user=Depends(get_current_user_optional)):
     raw = payload.model_dump()
-    distance = estimate_distance_km(raw.get("pickup", ""), raw.get("destination"))
+    distance, source = await real_distance_km(
+        raw.get("pickup", ""), raw.get("destination"),
+        pickup_lat=raw.get("pickup_lat"), pickup_lon=raw.get("pickup_lon"),
+        dest_lat=raw.get("dest_lat"), dest_lon=raw.get("dest_lon"),
+    )
     quote = estimate_quote(raw["service_type"], raw.get("vehicle_category"), distance)
     score = score_lead(raw)
 
@@ -139,6 +143,7 @@ async def create_inquiry(payload: InquiryCreate, user=Depends(get_current_user_o
         quote_min=quote["quote_min"],
         quote_max=quote["quote_max"],
         distance_km=quote["distance_km"],
+        distance_source=source,
     )
     doc = inquiry.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
@@ -191,8 +196,14 @@ async def voice_parse(payload: VoiceParseRequest):
 
 @api.post("/ai/quote", response_model=QuoteResponse)
 async def ai_quote(payload: QuoteRequest):
-    distance = estimate_distance_km(payload.pickup, payload.destination)
-    return estimate_quote(payload.service_type, payload.vehicle_category, distance)
+    distance, source = await real_distance_km(
+        payload.pickup, payload.destination,
+        pickup_lat=payload.pickup_lat, pickup_lon=payload.pickup_lon,
+        dest_lat=payload.dest_lat, dest_lon=payload.dest_lon,
+    )
+    q = estimate_quote(payload.service_type, payload.vehicle_category, distance)
+    q["distance_source"] = source
+    return q
 
 
 # ---------- Admin ----------

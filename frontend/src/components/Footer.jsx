@@ -8,8 +8,8 @@ export function Footer() {
     <footer className="bg-rk-navy text-white mt-24" data-testid="site-footer">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid md:grid-cols-4 gap-10">
         <div>
-          <div className="bg-white rounded-xl inline-flex p-3">
-            <Logo size={34} />
+          <div className="bg-white rounded-2xl inline-flex p-4">
+            <img src="/logo.png" alt="RK POOJA" className="h-24 w-auto object-contain" data-testid="footer-logo-image" />
           </div>
           <p className="mt-4 text-sm text-white/70 leading-relaxed">
             India's AI-powered ride & transport marketplace. From quick autos to

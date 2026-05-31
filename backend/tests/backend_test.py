@@ -11,6 +11,10 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://rk-pooja-rides.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
+
+# Allowed distance sources
+DISTANCE_SOURCES = {"osrm", "haversine", "lookup", "heuristic", "local"}
+
 ADMIN_EMAIL = "admin@rkpooja.in"
 ADMIN_PASSWORD = "admin@123"
 
@@ -149,7 +153,8 @@ class TestAI:
         assert r.status_code == 200
         d = r.json()
         assert d["quote_min"] > 0 and d["quote_max"] >= d["quote_min"]
-        assert d["distance_km"] == 110.0
+        # Distance is now real (OSRM) or fallback lookup (110.0). Accept a range.
+        assert 80 <= d["distance_km"] <= 130, d
         assert "breakdown" in d
 
     def test_quote_bus(self, s):
@@ -252,3 +257,70 @@ class TestAdmin:
                     headers={"Authorization": f"Bearer {admin_token}"})
         assert r.status_code == 200
         assert r.json()["status"] == "contacted"
+
+
+# ---------- Real distance (OSRM + Nominatim) ----------
+class TestRealDistance:
+    def test_quote_with_text_only_patna_gaya(self, s):
+        """No coords; should still produce a positive distance with valid source."""
+        r = s.post(f"{API}/ai/quote", json={
+            "service_type": "car", "vehicle_category": "Sedan",
+            "pickup": "Patna", "destination": "Gaya",
+        }, timeout=30)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["distance_km"] > 0
+        assert d["distance_source"] in DISTANCE_SOURCES, d
+
+    def test_quote_with_coords_uses_osrm(self, s):
+        """With explicit coords, should use OSRM or haversine fallback and produce ~100km."""
+        r = s.post(f"{API}/ai/quote", json={
+            "service_type": "car", "vehicle_category": "Sedan",
+            "pickup": "Patna", "destination": "Gaya",
+            "pickup_lat": 25.5941, "pickup_lon": 85.1376,
+            "dest_lat": 24.7914, "dest_lon": 85.0002,
+        }, timeout=30)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        # Either real OSRM road or haversine fallback (still using coords)
+        assert d["distance_source"] in {"osrm", "haversine"}, d
+        # ~100km driving, ~90km crow-fly*1.25
+        assert 70 < d["distance_km"] < 200, d
+
+    def test_inquiry_persists_distance_source(self, s):
+        r = s.post(f"{API}/inquiries", json={
+            "service_type": "car", "vehicle_category": "Sedan",
+            "pickup": "Patna", "destination": "Gaya",
+            "pickup_lat": 25.5941, "pickup_lon": 85.1376,
+            "dest_lat": 24.7914, "dest_lon": 85.0002,
+            "customer_name": "TEST Coord", "customer_phone": "+919999900077",
+        }, timeout=30)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert "distance_source" in d
+        assert d["distance_source"] in DISTANCE_SOURCES
+        assert d["distance_km"] > 0
+        # GET verify
+        r2 = s.get(f"{API}/inquiries/{d['id']}")
+        assert r2.status_code == 200
+        assert r2.json().get("distance_source") in DISTANCE_SOURCES
+
+
+# ---------- PWA assets ----------
+class TestPWAAssets:
+    def test_manifest(self, s):
+        r = requests.get(f"{BASE_URL}/manifest.json", timeout=15)
+        assert r.status_code == 200, r.text
+        # may be served as JSON or text/plain depending on static handler
+        data = r.json()
+        assert "RK POOJA" in data.get("name", ""), data
+
+    def test_service_worker(self, s):
+        r = requests.get(f"{BASE_URL}/sw.js", timeout=15)
+        assert r.status_code == 200
+        assert len(r.text) > 50
+
+    def test_logo(self, s):
+        r = requests.get(f"{BASE_URL}/logo.png", timeout=15)
+        assert r.status_code == 200
+        assert int(r.headers.get("content-length", len(r.content))) > 500

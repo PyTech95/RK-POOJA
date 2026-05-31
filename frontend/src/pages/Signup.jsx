@@ -33,7 +33,7 @@ export default function Signup() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2" data-testid="signup-page">
       <div className="rk-hero-bg text-white relative hidden lg:flex flex-col p-12 justify-between">
-        <div className="bg-white inline-flex p-3 rounded-xl w-fit"><Logo size={38} /></div>
+        <div className="bg-white inline-flex p-4 rounded-2xl w-fit"><img src="/logo.png" alt="RK POOJA" className="h-24 w-auto" /></div>
         <div>
           <h2 className="font-heading font-extrabold text-4xl tracking-tight">Join RK POOJA</h2>
           <p className="mt-3 text-white/70 max-w-md">

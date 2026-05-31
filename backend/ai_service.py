@@ -1,9 +1,12 @@
 """AI services for RK POOJA - chat, voice parsing, lead scoring, quote estimation."""
+"""AI services for RK POOJA - chat, voice parsing, lead scoring, quote estimation."""
 import os
 import json
 import re
 import logging
-from typing import Optional, Dict, Any
+import math
+import httpx
+from typing import Optional, Dict, Any, Tuple
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 logger = logging.getLogger(__name__)
@@ -128,21 +131,101 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z]", "", (s or "").lower())
 
 
-def estimate_distance_km(pickup: str, destination: Optional[str]) -> float:
+# ---------- Real driving distance (OpenStreetMap / OSRM — free, no API key) ----------
+async def _geocode(query: str) -> Optional[Tuple[float, float]]:
+    """Nominatim geocode (India biased). Returns (lat, lon) or None."""
+    if not query:
+        return None
+    url = "https://nominatim.openstreetmap.org/search"
+    params = {"q": query, "format": "json", "limit": 1, "countrycodes": "in"}
+    headers = {"User-Agent": "rk-pooja-app/1.0"}
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            r = await client.get(url, params=params, headers=headers)
+            if r.status_code != 200:
+                return None
+            data = r.json()
+            if not data:
+                return None
+            return float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception as e:
+        logger.debug("geocode failed for %r: %s", query, e)
+        return None
+
+
+def _haversine_km(a: Tuple[float, float], b: Tuple[float, float]) -> float:
+    lat1, lon1 = a; lat2, lon2 = b
+    R = 6371.0
+    p1 = math.radians(lat1); p2 = math.radians(lat2)
+    dp = math.radians(lat2 - lat1); dl = math.radians(lon2 - lon1)
+    h = math.sin(dp/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
+    return 2 * R * math.asin(math.sqrt(h))
+
+
+async def _osrm_distance_km(a: Tuple[float, float], b: Tuple[float, float]) -> Optional[float]:
+    """OSRM public demo server — free road-distance routing."""
+    url = f"https://router.project-osrm.org/route/v1/driving/{a[1]},{a[0]};{b[1]},{b[0]}"
+    params = {"overview": "false", "alternatives": "false", "steps": "false"}
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(url, params=params)
+            if r.status_code != 200:
+                return None
+            data = r.json()
+            routes = data.get("routes") or []
+            if not routes:
+                return None
+            return routes[0]["distance"] / 1000.0
+    except Exception as e:
+        logger.debug("osrm failed: %s", e)
+        return None
+
+
+async def real_distance_km(pickup: str, destination: Optional[str],
+                            pickup_lat: Optional[float] = None, pickup_lon: Optional[float] = None,
+                            dest_lat: Optional[float] = None, dest_lon: Optional[float] = None) -> Tuple[float, str]:
+    """Return (distance_km, source) using OSRM + OSM if possible, falling back to lookup table.
+
+    source ∈ {'osrm', 'haversine', 'lookup', 'heuristic', 'local'}
+    """
     if not destination:
-        return 25.0  # local city distance default
+        return 25.0, "local"
+
+    a = (pickup_lat, pickup_lon) if pickup_lat and pickup_lon else None
+    b = (dest_lat, dest_lon) if dest_lat and dest_lon else None
+    if not a:
+        a = await _geocode(pickup)
+    if not b:
+        b = await _geocode(destination)
+
+    if a and b:
+        d = await _osrm_distance_km(a, b)
+        if d and d > 0:
+            return round(d, 1), "osrm"
+        # fallback to crow-flies * 1.25 road-curvature factor
+        return round(_haversine_km(a, b) * 1.25, 1), "haversine"
+
+    # Pure-text fallback
+    return estimate_distance_km_text(pickup, destination), "lookup"
+
+
+def estimate_distance_km_text(pickup: str, destination: Optional[str]) -> float:
+    if not destination:
+        return 25.0
     a, b = _norm(pickup), _norm(destination)
     if a == b:
         return 25.0
-    key = (a, b)
-    rev = (b, a)
-    if key in KNOWN_DISTANCES_KM:
-        return float(KNOWN_DISTANCES_KM[key])
-    if rev in KNOWN_DISTANCES_KM:
-        return float(KNOWN_DISTANCES_KM[rev])
-    # heuristic: length-based pseudo-distance for unknown pairs
+    if (a, b) in KNOWN_DISTANCES_KM:
+        return float(KNOWN_DISTANCES_KM[(a, b)])
+    if (b, a) in KNOWN_DISTANCES_KM:
+        return float(KNOWN_DISTANCES_KM[(b, a)])
     base = 60 + (len(a) + len(b)) * 6
     return float(min(base, 600))
+
+
+# kept for back-compat with code that still calls it synchronously
+def estimate_distance_km(pickup: str, destination: Optional[str]) -> float:
+    return estimate_distance_km_text(pickup, destination)
 
 
 # Per-km rates (INR), and base fare

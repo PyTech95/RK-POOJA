@@ -14,6 +14,7 @@ import { useLang } from "../lib/language-context";
 import { useAuth } from "../lib/auth-context";
 import { buildInquiryWhatsApp } from "../lib/whatsapp";
 import { toast } from "sonner";
+import { LocationInput } from "./LocationInput";
 
 export function InquiryForm({ service }) {
   const { t, lang } = useLang();
@@ -26,6 +27,10 @@ export function InquiryForm({ service }) {
     vehicle_category: service.categories?.[0] || "",
     pickup: "",
     destination: "",
+    pickup_lat: null,
+    pickup_lon: null,
+    dest_lat: null,
+    dest_lon: null,
     journey_date: "",
     return_date: "",
     journey_time: "",
@@ -68,15 +73,19 @@ export function InquiryForm({ service }) {
           vehicle_category: form.vehicle_category,
           pickup: form.pickup,
           destination: form.destination || null,
+          pickup_lat: form.pickup_lat,
+          pickup_lon: form.pickup_lon,
+          dest_lat: form.dest_lat,
+          dest_lon: form.dest_lon,
           passengers: form.passengers ? Number(form.passengers) : null,
           weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
           journey_date: form.journey_date || null,
         });
         if (!cancelled) setQuote(data);
       } catch {}
-    }, 400);
+    }, 500);
     return () => { cancelled = true; clearTimeout(debouncer); };
-  }, [form.service_type, form.vehicle_category, form.pickup, form.destination, form.passengers, form.weight_kg]);
+  }, [form.service_type, form.vehicle_category, form.pickup, form.destination, form.passengers, form.weight_kg, form.pickup_lat, form.dest_lat, form.journey_date]);
 
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -191,14 +200,26 @@ export function InquiryForm({ service }) {
 
         <div>
           <Label className="text-xs uppercase tracking-widest font-bold text-rk-muted">{t("pickup")}</Label>
-          <Input className="h-12 mt-1" value={form.pickup} onChange={(e) => update("pickup", e.target.value)}
-            placeholder="e.g. Patna" required data-testid="inq-pickup" />
+          <LocationInput
+            value={form.pickup}
+            onChange={(v) => update("pickup", v)}
+            onSelect={(loc) => setForm((f) => ({ ...f, pickup: loc.display_name, pickup_lat: loc.lat, pickup_lon: loc.lon }))}
+            placeholder="e.g. Patna, Bihar"
+            testId="inq-pickup"
+            className="mt-1"
+          />
         </div>
 
         <div>
           <Label className="text-xs uppercase tracking-widest font-bold text-rk-muted">{t("destination")}</Label>
-          <Input className="h-12 mt-1" value={form.destination} onChange={(e) => update("destination", e.target.value)}
-            placeholder={service.key === "auto" || service.key === "bike" ? "Optional" : "e.g. Gaya"} data-testid="inq-destination" />
+          <LocationInput
+            value={form.destination}
+            onChange={(v) => update("destination", v)}
+            onSelect={(loc) => setForm((f) => ({ ...f, destination: loc.display_name, dest_lat: loc.lat, dest_lon: loc.lon }))}
+            placeholder={service.key === "auto" || service.key === "bike" ? "Optional" : "e.g. Gaya, Bihar"}
+            testId="inq-destination"
+            className="mt-1"
+          />
         </div>
 
         <div>
@@ -325,7 +346,12 @@ export function InquiryForm({ service }) {
         <div className="rounded-xl bg-rk-orange/5 border border-rk-orange/30 p-4 flex items-center gap-3" data-testid="live-quote">
           <Sparkles className="text-rk-orange shrink-0" size={20} />
           <div className="flex-1">
-            <div className="text-xs uppercase font-bold tracking-widest text-rk-orange">{t("estimated")}</div>
+            <div className="text-xs uppercase font-bold tracking-widest text-rk-orange flex items-center gap-2">
+              {t("estimated")}
+              {quote.distance_source === "osrm" && (
+                <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-[9px]" data-testid="osrm-badge">REAL ROAD DISTANCE</span>
+              )}
+            </div>
             <div className="font-heading text-xl font-extrabold text-rk-navy">
               ₹{quote.quote_min?.toLocaleString()} – ₹{quote.quote_max?.toLocaleString()}
               <span className="text-rk-muted text-xs font-normal ml-2">≈ {quote.distance_km} km</span>

@@ -53,6 +53,10 @@ class InquiryCreate(BaseModel):
     vehicle_category: Optional[str] = None  # e.g., "Sedan", "17 Seater"
     pickup: str
     destination: Optional[str] = None
+    pickup_lat: Optional[float] = None
+    pickup_lon: Optional[float] = None
+    dest_lat: Optional[float] = None
+    dest_lon: Optional[float] = None
     journey_date: Optional[str] = None  # ISO date string
     return_date: Optional[str] = None
     journey_time: Optional[str] = None
@@ -79,6 +83,10 @@ class InquiryDoc(BaseModel):
     vehicle_category: Optional[str] = None
     pickup: str
     destination: Optional[str] = None
+    pickup_lat: Optional[float] = None
+    pickup_lon: Optional[float] = None
+    dest_lat: Optional[float] = None
+    dest_lon: Optional[float] = None
     journey_date: Optional[str] = None
     return_date: Optional[str] = None
     journey_time: Optional[str] = None
@@ -101,6 +109,7 @@ class InquiryDoc(BaseModel):
     quote_min: Optional[int] = None
     quote_max: Optional[int] = None
     distance_km: Optional[float] = None
+    distance_source: Optional[str] = None  # 'osrm' | 'haversine' | 'lookup' | 'local'
 
     # Workflow
     status: str = "new"  # new | contacted | quoted | converted | closed
@@ -139,6 +148,10 @@ class QuoteRequest(BaseModel):
     vehicle_category: Optional[str] = None
     pickup: str
     destination: Optional[str] = None
+    pickup_lat: Optional[float] = None
+    pickup_lon: Optional[float] = None
+    dest_lat: Optional[float] = None
+    dest_lon: Optional[float] = None
     passengers: Optional[int] = None
     weight_kg: Optional[float] = None
     journey_date: Optional[str] = None
@@ -148,6 +161,7 @@ class QuoteResponse(BaseModel):
     quote_min: int
     quote_max: int
     distance_km: float
+    distance_source: Optional[str] = None
     breakdown: Dict[str, Any]
 
 

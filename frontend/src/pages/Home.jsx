@@ -10,6 +10,7 @@ import { useLang } from "../lib/language-context";
 import { useState } from "react";
 import { VoiceBooking } from "../components/VoiceBooking";
 import { AIChat } from "../components/AIChat";
+import { InstallAppButton } from "../components/InstallAppButton";
 
 const REVIEWS = [
   { name: "Rohan S.", city: "Patna", text: "Booked a 17-seater for my parents' Char Dham trip on WhatsApp in 5 minutes. Driver was excellent.", stars: 5 },
@@ -58,9 +59,11 @@ export default function Home() {
                 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25 }}
                 className="mt-7 flex flex-wrap items-center gap-3"
               >
+                <InstallAppButton variant="primary" label="Start the app" />
                 <Button
                   onClick={() => setOpenVoice(true)}
-                  className="bg-rk-orange hover:bg-rk-orange-600 text-white rounded-full h-14 px-7 text-base font-bold shadow-2xl shadow-rk-orange/40"
+                  variant="ghost"
+                  className="text-white border border-white/30 rounded-full h-14 px-6 hover:bg-white/10"
                   data-testid="hero-voice-cta"
                 >
                   <Mic className="mr-2" size={18} /> {t("cta_voice")}
@@ -88,7 +91,10 @@ export default function Home() {
             >
               <div className="relative">
                 <div className="bg-white rounded-2xl p-5 shadow-2xl border border-white/10">
-                  <div className="text-xs uppercase tracking-widest font-bold text-rk-orange">Live AI demo</div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-xs uppercase tracking-widest font-bold text-rk-orange">Live AI demo</div>
+                    <img src="/logo.png" alt="RK POOJA" className="h-12 w-auto object-contain" data-testid="hero-card-logo" />
+                  </div>
                   <div className="font-heading font-bold text-rk-ink text-xl mt-1">"Sedan, Patna → Gaya, tomorrow"</div>
                   <div className="mt-4 border-t border-rk-border pt-4 space-y-2 text-sm">
                     <Row label="Service" value="Car · Sedan" />
@@ -245,30 +251,35 @@ export default function Home() {
         </div>
       </section>
 
-      {/* WHATSAPP CTA */}
+      {/* WHATSAPP + INSTALL CTA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="rounded-3xl bg-gradient-to-br from-rk-orange to-rk-orange-600 text-white p-8 sm:p-12 relative overflow-hidden">
           <div className="absolute -right-10 -bottom-10 w-64 h-64 rounded-full bg-white/10 blur-2xl" />
-          <div className="relative">
-            <div className="text-xs uppercase font-bold tracking-widest text-white/80">Ready when you are</div>
-            <h2 className="font-heading font-extrabold text-3xl sm:text-4xl mt-2 max-w-2xl tracking-tight">
-              Send your trip to WhatsApp in one tap.
-            </h2>
-            <p className="mt-3 max-w-xl text-white/90">
-              Our team confirms the best vehicle and final price in minutes. {t("download_cta")}
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <a
-                href={`https://wa.me/919999999999?text=${encodeURIComponent("Hello RK POOJA, I want to book a ride.")}`}
-                target="_blank" rel="noreferrer"
-                className="bg-white text-rk-navy rounded-full px-6 py-3 font-bold inline-flex items-center gap-2"
-                data-testid="cta-whatsapp"
-              >
-                <MessageCircle size={16} /> Open WhatsApp
-              </a>
-              <Button asChild variant="ghost" className="text-white border border-white/40 rounded-full px-6 hover:bg-white/10">
-                <Link to="/services/car" data-testid="cta-explore">{t("cta_explore")}</Link>
-              </Button>
+          <div className="relative grid lg:grid-cols-5 gap-8 items-center">
+            <div className="lg:col-span-3">
+              <div className="text-xs uppercase font-bold tracking-widest text-white/80">Ready when you are</div>
+              <h2 className="font-heading font-extrabold text-3xl sm:text-4xl mt-2 max-w-2xl tracking-tight">
+                Send your trip to WhatsApp in one tap.
+              </h2>
+              <p className="mt-3 max-w-xl text-white/90">
+                Our team confirms the best vehicle and final price in minutes. {t("download_cta")}
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <InstallAppButton variant="secondary" label="Install RK POOJA app" />
+                <a
+                  href={`https://wa.me/919999999999?text=${encodeURIComponent("Hello RK POOJA, I want to book a ride.")}`}
+                  target="_blank" rel="noreferrer"
+                  className="bg-white/15 backdrop-blur text-white border border-white/40 rounded-full px-6 py-3 font-bold inline-flex items-center gap-2 hover:bg-white/25 h-14"
+                  data-testid="cta-whatsapp"
+                >
+                  <MessageCircle size={16} /> Open WhatsApp
+                </a>
+              </div>
+            </div>
+            <div className="lg:col-span-2 flex justify-center lg:justify-end">
+              <div className="bg-white rounded-2xl p-4 shadow-2xl max-w-xs">
+                <img src="/logo.png" alt="RK POOJA — ONE APP. ALL RIDES." className="w-full h-auto" data-testid="cta-logo-image" />
+              </div>
             </div>
           </div>
         </div>
