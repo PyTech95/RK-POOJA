@@ -46,9 +46,7 @@ from driver_service import (
     accept_inquiry, update_driver_rating, DRIVER_SIGNUP_BONUS,
 )
 from storage_service import put_object, get_object, init_storage, APP_NAME, MIME_BY_EXT
-from emergentintegrations.payments.stripe.checkout import (
-    StripeCheckout, CheckoutSessionRequest,
-)
+
 
 
 def uuid_str():
