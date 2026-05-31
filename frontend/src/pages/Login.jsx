@@ -71,9 +71,20 @@ export default function Login() {
             {loading ? <><Loader2 size={16} className="animate-spin mr-2" /> Logging in…</> : "Login"}
           </Button>
 
-          <div className="text-xs text-rk-muted text-center border border-dashed border-rk-border rounded-lg p-3">
-            <b>Admin demo:</b> admin@rkpooja.in · admin@123
-          </div>
+          <button
+            type="button"
+            onClick={() => { setEmail("admin@rkpooja.in"); setPassword("admin@123"); }}
+            className="w-full text-left border border-dashed border-rk-orange/40 bg-rk-orange/5 rounded-xl p-3 hover:bg-rk-orange/10 transition"
+            data-testid="login-demo-admin"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-rk-orange">Try demo · Admin</div>
+                <div className="text-sm font-mono text-rk-ink mt-0.5">admin@rkpooja.in · admin@123</div>
+              </div>
+              <span className="text-xs font-bold text-rk-orange">Auto-fill →</span>
+            </div>
+          </button>
         </form>
       </div>
     </div>
