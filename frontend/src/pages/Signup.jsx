@@ -73,6 +73,17 @@ export default function Signup() {
             <Input type="password" required minLength={6} className="h-12 mt-1" value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })} data-testid="signup-password" />
           </div>
+          <div>
+            <Label className="text-xs uppercase tracking-widest font-bold text-rk-muted flex items-center gap-1">
+              <Gift size={12} className="text-rk-orange" /> Referral code (optional)
+            </Label>
+            <Input className="h-12 mt-1 uppercase" value={form.referral_code} maxLength={12}
+              onChange={(e) => setForm({ ...form, referral_code: e.target.value.toUpperCase() })}
+              placeholder="Got a code from a friend?" data-testid="signup-referral" />
+            <p className="text-xs text-rk-muted mt-1">
+              You and your friend both get <b className="text-rk-orange">₹100</b> wallet credit.
+            </p>
+          </div>
 
           <Button type="submit" disabled={loading}
             className="w-full h-12 bg-rk-orange hover:bg-rk-orange-600 text-white font-bold rounded-full"

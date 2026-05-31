@@ -13,6 +13,7 @@ import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
+import Roadmap from "@/pages/Roadmap";
 
 function Layout({ children }) {
   return (
@@ -39,6 +40,7 @@ function App() {
             <Route path="/services/:type" element={<Layout><ServicePage /></Layout>} />
             <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
             <Route path="/admin" element={<Layout><Admin /></Layout>} />
+            <Route path="/roadmap" element={<Layout><Roadmap /></Layout>} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

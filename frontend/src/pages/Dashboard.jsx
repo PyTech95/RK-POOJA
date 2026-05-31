@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { MessageCircle, MapPin, Calendar, Loader2 } from "lucide-react";
 import { buildInquiryWhatsApp } from "../lib/whatsapp";
 import { toast } from "sonner";
+import { WalletPanel } from "../components/WalletPanel";
+import { ReferralPanel } from "../components/ReferralPanel";
 
 export default function Dashboard() {
   const { user, refresh } = useAuth();
@@ -47,7 +49,10 @@ export default function Dashboard() {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  const defaultTab = params.get("tab") === "profile" ? "profile" : "inquiries";
+  const defaultTab = (() => {
+    const t = params.get("tab");
+    return ["inquiries", "profile", "settings", "wallet", "referral"].includes(t) ? t : "inquiries";
+  })();
 
   return (
     <div className="min-h-screen max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10" data-testid="dashboard-page">
@@ -57,7 +62,7 @@ export default function Dashboard() {
           <h1 className="font-heading font-extrabold text-3xl sm:text-4xl text-rk-navy mt-1 tracking-tight">
             Hi, {user.name.split(" ")[0]}
           </h1>
-          <p className="text-rk-muted mt-1 text-sm">Manage your inquiries, profile and preferences.</p>
+          <p className="text-rk-muted mt-1 text-sm">Manage your inquiries, wallet, referrals and preferences.</p>
         </div>
         <Button asChild className="bg-rk-orange hover:bg-rk-orange-600 text-white rounded-full">
           <Link to="/" data-testid="dashboard-new-inquiry">+ New inquiry</Link>
@@ -65,8 +70,10 @@ export default function Dashboard() {
       </div>
 
       <Tabs defaultValue={defaultTab} className="mt-8">
-        <TabsList data-testid="dashboard-tabs">
+        <TabsList data-testid="dashboard-tabs" className="flex-wrap h-auto">
           <TabsTrigger value="inquiries" data-testid="tab-inquiries">{t("my_inquiries")} ({inquiries.length})</TabsTrigger>
+          <TabsTrigger value="wallet" data-testid="tab-wallet">Wallet</TabsTrigger>
+          <TabsTrigger value="referral" data-testid="tab-referral">Refer & earn</TabsTrigger>
           <TabsTrigger value="profile" data-testid="tab-profile">{t("profile")}</TabsTrigger>
           <TabsTrigger value="settings" data-testid="tab-settings">{t("settings")}</TabsTrigger>
         </TabsList>
@@ -86,6 +93,14 @@ export default function Dashboard() {
               {inquiries.map((inq) => <InquiryCard key={inq.id} inq={inq} />)}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="wallet" className="mt-6">
+          <WalletPanel />
+        </TabsContent>
+
+        <TabsContent value="referral" className="mt-6">
+          <ReferralPanel />
         </TabsContent>
 
         <TabsContent value="profile" className="mt-6 max-w-xl space-y-4">

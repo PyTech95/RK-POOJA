@@ -19,6 +19,7 @@ from models import (
     InquiryCreate, InquiryDoc, InquiryUpdate,
     AIChatRequest, AIChatResponse, VoiceParseRequest,
     QuoteRequest, QuoteResponse, ChatMessageDoc,
+    WalletTopupRequest, WalletCreditRequest, ApplyReferralRequest, ReverseGeoRequest,
     utc_now,
 )
 from auth import (
@@ -28,6 +29,10 @@ from auth import (
 from ai_service import (
     ai_chat_reply, ai_parse_voice, real_distance_km, estimate_quote, score_lead,
 )
+from wallet_service import (
+    ensure_wallet_and_referral, get_balance, credit_wallet, apply_referral,
+    reverse_geocode,
+)
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
@@ -36,6 +41,9 @@ db = client[os.environ["DB_NAME"]]
 users_col = db.users
 inquiries_col = db.inquiries
 chats_col = db.chat_messages
+wallets_col = db.wallets
+transactions_col = db.transactions
+referrals_col = db.referrals
 
 
 def _strip(doc: dict) -> dict:
@@ -70,6 +78,12 @@ async def register(payload: UserCreate):
     doc = user.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
     await users_col.insert_one(doc)
+
+    # Wallet + referral code + signup bonus
+    await ensure_wallet_and_referral(db, user.id, user.name)
+    if payload.referral_code:
+        await apply_referral(db, user.id, payload.referral_code)
+
     token = create_token(user.id, user.role)
     return {
         "token": token,
@@ -277,6 +291,117 @@ async def whatsapp_number():
     return {"number": os.environ.get("WHATSAPP_NUMBER", "919999999999")}
 
 
+# ---------- Wallet ----------
+@api.get("/wallet/me")
+async def my_wallet(user=Depends(get_current_user)):
+    balance = await get_balance(db, user["sub"])
+    cur = transactions_col.find({"user_id": user["sub"]}, {"_id": 0}).sort("created_at", -1).limit(50)
+    txns = await cur.to_list(50)
+    return {"balance": balance, "currency": "INR", "transactions": txns}
+
+
+@api.post("/wallet/topup")
+async def wallet_topup(payload: WalletTopupRequest, user=Depends(get_current_user)):
+    """Mock top-up — instantly credits the wallet. Replace with Stripe/Razorpay later."""
+    if payload.amount <= 0 or payload.amount > 100000:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+    await credit_wallet(db, user["sub"], payload.amount, "topup",
+                        note=f"Wallet top-up of ₹{payload.amount}")
+    return {"balance": await get_balance(db, user["sub"]), "amount": payload.amount}
+
+
+# ---------- Referrals ----------
+@api.get("/referrals/me")
+async def my_referrals(user=Depends(get_current_user)):
+    ref = await referrals_col.find_one({"user_id": user["sub"]}, {"_id": 0})
+    if not ref:
+        # Create on demand
+        u = await users_col.find_one({"id": user["sub"]}, {"_id": 0})
+        await ensure_wallet_and_referral(db, user["sub"], u.get("name", "RK") if u else "RK")
+        ref = await referrals_col.find_one({"user_id": user["sub"]}, {"_id": 0})
+    return {
+        "code": ref["code"],
+        "referred_count": len(ref.get("referred_user_ids", [])),
+        "total_earned": ref.get("total_earned", 0),
+        "share_text": (
+            f"Hey! 🚗 I use RK POOJA for all rides — cars, autos, bus, parcels & goods. "
+            f"Sign up with my code {ref['code']} and we both get ₹100 wallet credit. "
+            f"https://rkpooja.in/signup?ref={ref['code']}"
+        ),
+    }
+
+
+@api.post("/referrals/apply")
+async def apply_my_referral(payload: ApplyReferralRequest, user=Depends(get_current_user)):
+    # Only useful if user didn't apply during signup; one-shot
+    user_doc = await users_col.find_one({"id": user["sub"]})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    # check already applied
+    already = await referrals_col.find_one({"referred_user_ids": user["sub"]})
+    if already:
+        raise HTTPException(status_code=400, detail="Referral code already applied")
+    ok = await apply_referral(db, user["sub"], payload.code)
+    if not ok:
+        raise HTTPException(status_code=400, detail="Invalid referral code")
+    return {"ok": True, "balance": await get_balance(db, user["sub"])}
+
+
+# ---------- Geo ----------
+@api.post("/geo/reverse")
+async def geo_reverse(payload: ReverseGeoRequest):
+    return await reverse_geocode(payload.lat, payload.lon)
+
+
+# ---------- Admin: wallet / users / referrals ----------
+@api.post("/admin/wallet/credit")
+async def admin_wallet_credit(payload: WalletCreditRequest, _admin=Depends(require_admin)):
+    if payload.amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+    user_doc = await users_col.find_one({"id": payload.user_id})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    await credit_wallet(db, payload.user_id, payload.amount, "admin_credit",
+                        note=payload.note or "Admin credit")
+    return {"ok": True, "balance": await get_balance(db, payload.user_id)}
+
+
+@api.get("/admin/transactions")
+async def admin_transactions(user_id: Optional[str] = None, _admin=Depends(require_admin)):
+    q = {"user_id": user_id} if user_id else {}
+    cur = transactions_col.find(q, {"_id": 0}).sort("created_at", -1).limit(500)
+    return await cur.to_list(500)
+
+
+@api.get("/admin/users/full")
+async def admin_users_full(_admin=Depends(require_admin)):
+    """Users + wallet balance + referral stats joined."""
+    users = await users_col.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(1000)
+    wallets = await wallets_col.find({}, {"_id": 0}).to_list(1000)
+    refs = await referrals_col.find({}, {"_id": 0}).to_list(1000)
+    bw = {w["user_id"]: w for w in wallets}
+    br = {r["user_id"]: r for r in refs}
+    for u in users:
+        u["balance"] = int(bw.get(u["id"], {}).get("balance", 0))
+        rr = br.get(u["id"])
+        u["referral_code"] = rr["code"] if rr else None
+        u["referred_count"] = len(rr.get("referred_user_ids", [])) if rr else 0
+    return users
+
+
+@api.get("/admin/referrals")
+async def admin_referrals(_admin=Depends(require_admin)):
+    refs = await referrals_col.find({}, {"_id": 0}).sort("total_earned", -1).to_list(1000)
+    # join user name
+    users = await users_col.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1}).to_list(1000)
+    bu = {u["id"]: u for u in users}
+    for r in refs:
+        u = bu.get(r["user_id"], {})
+        r["owner_name"] = u.get("name")
+        r["owner_email"] = u.get("email")
+    return refs
+
+
 app.include_router(api)
 
 app.add_middleware(
@@ -305,6 +430,9 @@ async def seed_admin():
         doc["created_at"] = doc["created_at"].isoformat()
         await users_col.insert_one(doc)
         logger.info("Seeded default admin: %s", admin_email)
+    # Ensure all existing users have wallet + referral
+    async for u in users_col.find({}, {"_id": 0, "id": 1, "name": 1}):
+        await ensure_wallet_and_referral(db, u["id"], u.get("name", "RK"))
 
 
 @app.on_event("shutdown")

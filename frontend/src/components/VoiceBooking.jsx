@@ -103,6 +103,43 @@ export function VoiceBooking({ open, onOpenChange }) {
     navigate(`/services/${parsed.service_type}?${params.toString()}`);
   };
 
+  const startRideNow = async () => {
+    if (!parsed?.service_type) {
+      toast.error("Service not detected. Please try again.");
+      return;
+    }
+    setParsing(true);
+    try {
+      const payload = {
+        service_type: parsed.service_type,
+        sub_service: parsed.sub_service || null,
+        vehicle_category: parsed.vehicle_category || null,
+        pickup: parsed.pickup || "Current location",
+        destination: parsed.destination || null,
+        journey_date: parsed.journey_date || null,
+        journey_time: parsed.journey_time || null,
+        passengers: parsed.passengers ? Number(parsed.passengers) : null,
+        weight_kg: parsed.weight_kg ? Number(parsed.weight_kg) : null,
+        goods_type: parsed.goods_type || null,
+        purpose: parsed.purpose || null,
+        language: lang,
+        source: "voice",
+      };
+      const { data } = await api.post("/inquiries", payload);
+      toast.success("Ride request placed! Opening WhatsApp…");
+      // Send to WhatsApp
+      const { buildInquiryWhatsApp } = await import("../lib/whatsapp");
+      const url = buildInquiryWhatsApp({ inquiry: data, number: "919999999999" });
+      window.open(url, "_blank", "noreferrer");
+      onOpenChange(false);
+      navigate(`/dashboard`);
+    } catch (e) {
+      toast.error("Could not place ride request. Try again.");
+    } finally {
+      setParsing(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg" data-testid="voice-booking-dialog">
@@ -175,11 +212,20 @@ export function VoiceBooking({ open, onOpenChange }) {
               {parsed.summary && <li className="text-rk-muted italic">{parsed.summary}</li>}
             </ul>
             <Button
+              onClick={startRideNow}
+              disabled={parsing}
+              className="w-full bg-rk-orange hover:bg-rk-orange-600 text-white mt-4 h-12 font-bold"
+              data-testid="voice-start-ride"
+            >
+              {parsing ? <><Loader2 size={16} className="animate-spin mr-2" /> Placing…</> : <>🚗 Start ride now & send to WhatsApp</>}
+            </Button>
+            <Button
               onClick={goCreate}
-              className="w-full bg-rk-orange hover:bg-rk-orange-600 text-white mt-4"
+              variant="outline"
+              className="w-full mt-2"
               data-testid="voice-continue-button"
             >
-              Continue to inquiry <ArrowRight size={16} className="ml-1" />
+              Edit details first <ArrowRight size={16} className="ml-1" />
             </Button>
           </div>
         )}

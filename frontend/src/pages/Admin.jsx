@@ -7,9 +7,12 @@ import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
+import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import {
-  Users, ListChecks, IndianRupee, Flame, TrendingUp, Filter, MessageCircle, Loader2,
+  Users, ListChecks, IndianRupee, Flame, Wallet, Gift,
+  Filter, MessageCircle, Loader2, Plus,
 } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { buildInquiryWhatsApp } from "../lib/whatsapp";
@@ -77,8 +80,11 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="leads" className="mt-8">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="leads" data-testid="admin-tab-leads">Leads</TabsTrigger>
+          <TabsTrigger value="users" data-testid="admin-tab-users">Users</TabsTrigger>
+          <TabsTrigger value="referrals" data-testid="admin-tab-referrals">Referrals</TabsTrigger>
+          <TabsTrigger value="transactions" data-testid="admin-tab-transactions">Transactions</TabsTrigger>
           <TabsTrigger value="analytics" data-testid="admin-tab-analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -208,7 +214,188 @@ export default function Admin() {
             </LineChart>
           </ChartCard>
         </TabsContent>
+
+        <TabsContent value="users" className="mt-6">
+          <UsersTab />
+        </TabsContent>
+
+        <TabsContent value="referrals" className="mt-6">
+          <ReferralsTab />
+        </TabsContent>
+
+        <TabsContent value="transactions" className="mt-6">
+          <TransactionsTab />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function UsersTab() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creditUser, setCreditUser] = useState(null);
+  const [creditAmount, setCreditAmount] = useState(100);
+  const [creditNote, setCreditNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await api.get("/admin/users/full");
+      setUsers(r.data);
+    } catch { toast.error("Failed to load users"); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const credit = async () => {
+    if (!creditUser || !creditAmount || creditAmount <= 0) return;
+    setSubmitting(true);
+    try {
+      await api.post("/admin/wallet/credit", {
+        user_id: creditUser.id, amount: Number(creditAmount), note: creditNote || "Admin credit",
+      });
+      toast.success(`Credited ₹${creditAmount} to ${creditUser.name}`);
+      setCreditUser(null); setCreditAmount(100); setCreditNote("");
+      load();
+    } catch { toast.error("Credit failed"); }
+    finally { setSubmitting(false); }
+  };
+
+  if (loading) return <div className="text-rk-muted flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Loading…</div>;
+
+  return (
+    <div className="rounded-2xl border border-rk-border bg-white overflow-x-auto" data-testid="admin-users-table">
+      <table className="w-full text-sm min-w-[800px]">
+        <thead className="bg-slate-50 text-rk-muted text-xs uppercase tracking-widest">
+          <tr>
+            <th className="text-left p-3">User</th>
+            <th className="text-left p-3">Phone</th>
+            <th className="text-left p-3">Wallet</th>
+            <th className="text-left p-3">Referral</th>
+            <th className="text-left p-3">Role</th>
+            <th className="text-left p-3">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-rk-muted">No users yet.</td></tr>}
+          {users.map((u) => (
+            <tr key={u.id} className="border-t border-rk-border" data-testid={`admin-user-row-${u.id}`}>
+              <td className="p-3"><div className="font-semibold text-rk-ink">{u.name}</div><div className="text-xs text-rk-muted">{u.email}</div></td>
+              <td className="p-3">{u.phone || "—"}</td>
+              <td className="p-3 font-heading font-bold text-rk-navy">₹{Number(u.balance || 0).toLocaleString()}</td>
+              <td className="p-3">
+                <div className="font-mono text-rk-ink">{u.referral_code || "—"}</div>
+                <div className="text-xs text-rk-muted">{u.referred_count || 0} invited</div>
+              </td>
+              <td className="p-3"><Badge variant={u.role === "admin" ? "default" : "outline"} className="uppercase text-[10px]">{u.role}</Badge></td>
+              <td className="p-3">
+                <Button onClick={() => setCreditUser(u)} variant="outline" size="sm" className="rounded-full" data-testid={`admin-credit-${u.id}`}>
+                  <Plus size={12} className="mr-1" /> Credit wallet
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <Dialog open={!!creditUser} onOpenChange={(o) => !o && setCreditUser(null)}>
+        <DialogContent data-testid="credit-dialog">
+          <DialogHeader>
+            <DialogTitle>Credit wallet — {creditUser?.name}</DialogTitle>
+            <DialogDescription>Add bonus credits to this user's wallet.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs uppercase tracking-widest font-bold text-rk-muted">Amount (₹)</Label>
+              <Input type="number" min={1} value={creditAmount}
+                onChange={(e) => setCreditAmount(e.target.value)} className="h-11 mt-1" data-testid="credit-amount" />
+            </div>
+            <div>
+              <Label className="text-xs uppercase tracking-widest font-bold text-rk-muted">Note (optional)</Label>
+              <Input value={creditNote} onChange={(e) => setCreditNote(e.target.value)}
+                placeholder="e.g. festival bonus" className="h-11 mt-1" data-testid="credit-note" />
+            </div>
+            <Button onClick={credit} disabled={submitting}
+              className="w-full bg-rk-orange hover:bg-rk-orange-600 text-white h-11 rounded-full" data-testid="credit-submit">
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : `Credit ₹${creditAmount}`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function ReferralsTab() {
+  const [refs, setRefs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    api.get("/admin/referrals").then((r) => setRefs(r.data)).finally(() => setLoading(false));
+  }, []);
+  if (loading) return <div className="text-rk-muted flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Loading…</div>;
+  return (
+    <div className="rounded-2xl border border-rk-border bg-white overflow-x-auto" data-testid="admin-referrals-table">
+      <table className="w-full text-sm min-w-[600px]">
+        <thead className="bg-slate-50 text-rk-muted text-xs uppercase tracking-widest">
+          <tr>
+            <th className="text-left p-3">Owner</th>
+            <th className="text-left p-3">Code</th>
+            <th className="text-left p-3">Invited</th>
+            <th className="text-left p-3">Earned</th>
+          </tr>
+        </thead>
+        <tbody>
+          {refs.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-rk-muted">No referrals yet.</td></tr>}
+          {refs.map((r) => (
+            <tr key={r.id} className="border-t border-rk-border">
+              <td className="p-3"><div className="font-semibold text-rk-ink">{r.owner_name}</div><div className="text-xs text-rk-muted">{r.owner_email}</div></td>
+              <td className="p-3 font-mono font-bold text-rk-navy">{r.code}</td>
+              <td className="p-3">{(r.referred_user_ids || []).length}</td>
+              <td className="p-3 font-heading font-bold text-green-600">₹{Number(r.total_earned || 0).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TransactionsTab() {
+  const [txns, setTxns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    api.get("/admin/transactions").then((r) => setTxns(r.data)).finally(() => setLoading(false));
+  }, []);
+  if (loading) return <div className="text-rk-muted flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Loading…</div>;
+  return (
+    <div className="rounded-2xl border border-rk-border bg-white overflow-x-auto" data-testid="admin-txn-table">
+      <table className="w-full text-sm min-w-[600px]">
+        <thead className="bg-slate-50 text-rk-muted text-xs uppercase tracking-widest">
+          <tr>
+            <th className="text-left p-3">Time</th>
+            <th className="text-left p-3">User</th>
+            <th className="text-left p-3">Type</th>
+            <th className="text-left p-3">Amount</th>
+            <th className="text-left p-3">Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {txns.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-rk-muted">No transactions yet.</td></tr>}
+          {txns.map((t) => (
+            <tr key={t.id} className="border-t border-rk-border">
+              <td className="p-3 text-xs text-rk-muted">{(t.created_at || "").slice(0, 16).replace("T", " ")}</td>
+              <td className="p-3 font-mono text-xs">{t.user_id.slice(0, 8)}…</td>
+              <td className="p-3 capitalize">{t.type.replace("_", " ")}</td>
+              <td className={`p-3 font-bold ${t.direction === "in" ? "text-green-600" : "text-red-600"}`}>
+                {t.direction === "in" ? "+" : "−"}₹{Number(t.amount).toLocaleString()}
+              </td>
+              <td className="p-3 text-rk-muted">{t.note || "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

@@ -28,6 +28,7 @@ class UserCreate(BaseModel):
     phone: Optional[str] = None
     password: str
     language: Optional[str] = "en"
+    referral_code: Optional[str] = None
 
 
 class UserLogin(BaseModel):
@@ -175,3 +176,58 @@ class ChatMessageDoc(BaseModel):
     content: str
     language: str = "en"
     created_at: datetime = Field(default_factory=utc_now)
+
+
+# ---------- Wallet & Transactions ----------
+class WalletDoc(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=new_id)
+    user_id: str
+    balance: int = 0  # paise? we use INR rupees for simplicity
+    currency: str = "INR"
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class TransactionDoc(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=new_id)
+    user_id: str
+    type: str  # topup | debit | credit | referral_bonus | admin_credit
+    amount: int  # positive integer in INR
+    direction: str  # in | out
+    note: Optional[str] = None
+    ref_id: Optional[str] = None  # inquiry id / referral id etc.
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class WalletTopupRequest(BaseModel):
+    amount: int
+
+
+class WalletCreditRequest(BaseModel):
+    user_id: str
+    amount: int
+    note: Optional[str] = None
+
+
+# ---------- Referral ----------
+class ReferralDoc(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=new_id)
+    user_id: str
+    code: str  # short, uppercase
+    referred_user_ids: list = Field(default_factory=list)
+    total_earned: int = 0
+    role: str = "user"  # user | driver
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class ApplyReferralRequest(BaseModel):
+    code: str
+
+
+# ---------- Geo ----------
+class ReverseGeoRequest(BaseModel):
+    lat: float
+    lon: float

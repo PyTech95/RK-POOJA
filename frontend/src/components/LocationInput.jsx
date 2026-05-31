@@ -1,40 +1,37 @@
 import { useEffect, useRef, useState } from "react";
-import { MapPin, Loader2 } from "lucide-react";
+import { MapPin, Loader2, LocateFixed } from "lucide-react";
 import { Input } from "./ui/input";
+import { api } from "../lib/api";
 
 /**
  * Free OpenStreetMap Nominatim autocomplete — no API key needed.
  * Stores lat/lon on selection (passed back through `onSelect`).
- *
- * Props:
- *   value, onChange(text)
- *   onSelect({display_name, lat, lon}) optional
- *   placeholder, testId, label
+ * Adds a "Use my location" button that auto-detects via browser geolocation +
+ * reverse-geocodes through our backend.
  */
 export function LocationInput({
   value, onChange, onSelect,
   placeholder = "Search city, area, landmark…", testId, className = "",
+  enableLocate = true,
 }) {
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
   const wrapperRef = useRef(null);
   const ctrlRef = useRef(null);
   const lastSelectedRef = useRef("");
 
   useEffect(() => {
     if (!value || value.trim().length < 3) { setResults([]); return; }
-    if (value === lastSelectedRef.current) return; // don't search after explicit select
+    if (value === lastSelectedRef.current) return;
     const handle = setTimeout(async () => {
       try {
         ctrlRef.current?.abort();
         ctrlRef.current = new AbortController();
         setLoading(true);
         const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=in&limit=6&q=${encodeURIComponent(value)}`;
-        const r = await fetch(url, {
-          signal: ctrlRef.current.signal,
-          headers: { "Accept": "application/json" },
-        });
+        const r = await fetch(url, { signal: ctrlRef.current.signal, headers: { "Accept": "application/json" } });
         const data = await r.json();
         setResults(Array.isArray(data) ? data : []);
         setOpen(true);
@@ -59,27 +56,57 @@ export function LocationInput({
     const text = formatName(item);
     lastSelectedRef.current = text;
     onChange(text);
-    onSelect?.({
-      display_name: text,
-      lat: parseFloat(item.lat),
-      lon: parseFloat(item.lon),
-    });
+    onSelect?.({ display_name: text, lat: parseFloat(item.lat), lon: parseFloat(item.lon) });
     setOpen(false);
+  };
+
+  const locate = () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude: lat, longitude: lon } = pos.coords;
+          const { data } = await api.post("/geo/reverse", { lat, lon });
+          const text = data.display_name;
+          lastSelectedRef.current = text;
+          onChange(text);
+          onSelect?.({ display_name: text, lat, lon });
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
       <Input
         value={value}
-        onChange={(e) => { onChange(e.target.value); }}
+        onChange={(e) => onChange(e.target.value)}
         onFocus={() => results.length && setOpen(true)}
         placeholder={placeholder}
-        className="h-12 pl-9"
+        className={`h-12 pl-9 ${enableLocate ? "pr-11" : ""}`}
         data-testid={testId}
         autoComplete="off"
       />
       <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-rk-orange pointer-events-none" />
-      {loading && (
+      {enableLocate && (
+        <button
+          type="button"
+          onClick={locate}
+          disabled={locating}
+          aria-label="Use my current location"
+          title="Use my current location"
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-md grid place-items-center text-rk-navy hover:bg-rk-orange/10 transition disabled:opacity-60"
+          data-testid={`${testId}-locate`}
+        >
+          {locating ? <Loader2 size={14} className="animate-spin" /> : <LocateFixed size={16} />}
+        </button>
+      )}
+      {!enableLocate && loading && (
         <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-rk-muted" />
       )}
       {open && results.length > 0 && (
@@ -109,12 +136,8 @@ export function LocationInput({
 
 function primaryName(r) {
   return (
-    r.address?.city ||
-    r.address?.town ||
-    r.address?.village ||
-    r.address?.suburb ||
-    r.address?.neighbourhood ||
-    r.name ||
+    r.address?.city || r.address?.town || r.address?.village ||
+    r.address?.suburb || r.address?.neighbourhood || r.name ||
     r.display_name.split(",")[0]
   );
 }

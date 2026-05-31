@@ -7,7 +7,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
-import { Globe, Menu, X, LogOut, LayoutDashboard, ShieldCheck, User as UserIcon } from "lucide-react";
+import { Globe, Menu, X, LogOut, LayoutDashboard, ShieldCheck, User as UserIcon, Wallet, Gift, Map } from "lucide-react";
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -22,6 +22,7 @@ export function Header() {
     { to: "/services/bus", label: "Bus" },
     { to: "/services/porter", label: "Porter" },
     { to: "/services/goods", label: "Goods" },
+    { to: "/roadmap", label: "Roadmap" },
   ];
 
   return (
@@ -100,6 +101,12 @@ export function Header() {
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem onClick={() => navigate("/dashboard")} data-testid="menu-dashboard">
                   <LayoutDashboard size={14} className="mr-2" /> {t("dashboard")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/dashboard?tab=wallet")} data-testid="menu-wallet">
+                  <Wallet size={14} className="mr-2" /> Wallet
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/dashboard?tab=referral")} data-testid="menu-referral">
+                  <Gift size={14} className="mr-2" /> Refer & earn
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/dashboard?tab=profile")} data-testid="menu-profile">
                   <UserIcon size={14} className="mr-2" /> {t("profile")}
